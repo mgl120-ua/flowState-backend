@@ -9,7 +9,7 @@ import java.io.Serializable;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "Transition")
+@Table(name = "transition")
 public class Transition implements Serializable {
     private static final long serialVersionUID = 1L;
 

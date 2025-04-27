@@ -9,7 +9,7 @@ import java.io.Serializable;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "AppUser")
+@Table(name = "app_user")
 public class AppUser implements Serializable {
     private static final long serialVersionUID = 1L;
 

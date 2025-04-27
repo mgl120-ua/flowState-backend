@@ -8,6 +8,7 @@ services:
       POSTGRES_USER: marta
       POSTGRES_PASSWORD: holamundo
       POSTGRES_DB: flowState
+      POSTGRES_HOST_AUTH_METHOD: md5
     ports:
       - "5432:5432"
     volumes:

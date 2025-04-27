@@ -9,8 +9,8 @@ import java.io.Serializable;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "Instances_History")
-public class Instances_History implements Serializable {
+@Table(name = "instance_history")
+public class Instance_History implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
@@ -19,7 +19,7 @@ public class Instances_History implements Serializable {
     private LocalDateTime timestamp;
     @ManyToOne
     @JoinColumn(name = "instance_id")
-    private Instances instances;
+    private Instance instance;
     @ManyToOne
     @JoinColumn(name = "from_state_id")
     private State  from_state;
