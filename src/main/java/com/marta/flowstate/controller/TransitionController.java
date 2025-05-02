@@ -3,7 +3,8 @@ package com.marta.flowstate.controller;
 import com.marta.flowstate.model.Transition;
 import com.marta.flowstate.service.TransitionService;
 import org.springframework.web.bind.annotation.*;
-
+import com.marta.flowstate.dto.TransitionDTO;
+import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
@@ -22,8 +23,8 @@ public class TransitionController {
     }
 
     @PostMapping
-    public Transition createTransition(@RequestBody Transition transition) {
-        return transitionService.createTransition(transition);
+    public Transition createTransition(@RequestBody TransitionDTO dto, @PathVariable Long flowId) {
+        return transitionService.createTransitionFromDTO(dto, flowId);
     }
 
     @GetMapping("/{transitionId}")
@@ -34,5 +35,10 @@ public class TransitionController {
     @DeleteMapping("/{transitionId}")
     public void deleteTransition(@PathVariable Long transitionId) {
         transitionService.deleteTransition(transitionId);
+    }
+
+    @PutMapping("/{transitionId}")
+    public Transition updateTransition(@PathVariable Long transitionId, @RequestBody TransitionDTO dto) {
+        return transitionService.updateTransitionFromDTO(transitionId, dto);
     }
 }

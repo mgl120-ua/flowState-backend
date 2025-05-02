@@ -4,9 +4,11 @@ import com.marta.flowstate.model.Instance;
 import com.marta.flowstate.service.InstanceService;
 import com.marta.flowstate.model.Instance_History;
 import com.marta.flowstate.repository.Instance_HistoryRepository;
-
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
-
+import com.marta.flowstate.dto.InstanceDTO;
+import com.marta.flowstate.repository.StateRepository;
+import com.marta.flowstate.dto.InstanceDTO;
 import java.util.List;
 
 @RestController
@@ -25,8 +27,8 @@ public class InstanceController {
     }
 
     @PostMapping
-    public Instance createInstance(@RequestBody Instance instance) {
-        return instanceService.createInstance(instance);
+    public Instance createInstance(@Valid @RequestBody InstanceDTO dto) {
+        return instanceService.createInstanceFromDTO(dto);
     }
 
     @GetMapping("/{instanceId}")
@@ -42,5 +44,10 @@ public class InstanceController {
     @GetMapping("/{instanceId}/history")
     public List<Instance_History> getInstanceHistory(@PathVariable Long instanceId) {
         return instanceService.getInstanceHistory(instanceId);
+    }
+
+    @PutMapping("/{instanceId}")
+    public Instance updateInstance(@PathVariable Long instanceId, @Valid @RequestBody InstanceDTO dto) {
+        return instanceService.updateInstanceFromDTO(instanceId, dto);
     }
 }
