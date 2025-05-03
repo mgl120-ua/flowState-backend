@@ -29,6 +29,7 @@ CREATE TABLE workflow (
 CREATE TABLE state (
                        id BIGSERIAL PRIMARY KEY,
                        name VARCHAR NOT NULL,
+                       type VARCHAR(10) DEFAULT 'normal' CHECK (type IN ('initial', 'normal', 'final')),
                        workflow_id BIGINT NOT NULL REFERENCES workflow(id) ON DELETE CASCADE
 );
 
@@ -110,23 +111,23 @@ INSERT INTO workflow (name, company_id) VALUES
 
 -- ESTADOS
 -- Contratación
-INSERT INTO state (name, workflow_id) VALUES
-                                          ('Registro inicial', 1),
-                                          ('Verificación de datos', 1),
-                                          ('Cuenta creada', 1);
+INSERT INTO state (name, type, workflow_id) VALUES
+                                          ('Registro inicial', 'initial',1),
+                                          ('Verificación de datos', 'normal', 1),
+                                          ('Cuenta creada','final', 1);
 
 -- Vacaciones
-INSERT INTO state (name, workflow_id) VALUES
-                                          ('Solicitud enviada', 2),
-                                          ('Aprobación pendiente', 2),
-                                          ('Aprobado', 2),
-                                          ('Rechazado', 2);
+INSERT INTO state (name, type, workflow_id) VALUES
+                                          ('Solicitud enviada', 'initial', 2),
+                                          ('Aprobación pendiente', 'normal', 2),
+                                          ('Aprobado', 'normal',2),
+                                          ('Rechazado','final', 2);
 
 -- Publicación
-INSERT INTO state (name, workflow_id) VALUES
-                                          ('Borrador', 3),
-                                          ('Revisión editorial', 3),
-                                          ('Publicado', 3);
+INSERT INTO state (name, type, workflow_id) VALUES
+                                          ('Borrador', 'initial', 3),
+                                          ('Revisión editorial','normal', 3),
+                                          ('Publicado', 'final',3);
 
 -- TRANSICIONES
 INSERT INTO transition (action, condition, source_state_id, target_state_id, workflow_id) VALUES

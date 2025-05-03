@@ -8,7 +8,9 @@ import com.marta.flowstate.dto.StateDTO;
 import com.marta.flowstate.model.State;
 import com.marta.flowstate.model.Workflow;
 import com.marta.flowstate.exception.NotFoundException;
+import com.marta.flowstate.model.StateType;
 import java.util.List;
+
 
 @Service
 public class StateService {
@@ -34,8 +36,17 @@ public class StateService {
         Workflow workflow = workflowRepository.findById(dto.getWorkflowId())
                 .orElseThrow(() -> new NotFoundException("Flujo:" + dto.getWorkflowId() + " no encontrado"));
 
+        if (dto.getType() == StateType.INITIAL && stateRepository.existsByWorkflowIdAndType(dto.getWorkflowId(), StateType.INITIAL)) {
+            throw new IllegalArgumentException("Ya existe un estado inicial para este flujo");
+        }
+
         State state = new State();
         state.setName(dto.getName());
+        if(dto.getType() != null) {
+            state.setType(dto.getType());
+        }else{
+            state.setType(StateType.NORMAL);
+        }
         state.setWorkflow(workflow);
         return stateRepository.save(state);
     }
@@ -53,7 +64,16 @@ public class StateService {
         Workflow workflow = workflowRepository.findById(dto.getWorkflowId())
                 .orElseThrow(() -> new RuntimeException("Flujo: " + dto.getWorkflowId() + " no encontrado"));
 
+        if (dto.getType() == StateType.INITIAL && state.getType() != StateType.INITIAL && stateRepository.existsByWorkflowIdAndType(dto.getWorkflowId(), StateType.INITIAL)) {
+            throw new IllegalArgumentException("Ya existe un estado inicial para este flujo");
+        }
+
         state.setName(dto.getName());
+        if(dto.getType() != null) {
+            state.setType(dto.getType());
+        }else{
+            state.setType(StateType.NORMAL);
+        }
         state.setWorkflow(workflow);
 
         return stateRepository.save(state);

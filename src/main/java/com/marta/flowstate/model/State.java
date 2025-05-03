@@ -17,6 +17,9 @@ public class State implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String name;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type")
+    private StateType type = StateType.NORMAL;
     @ManyToOne
     @JoinColumn(name = "workflow_id")
     private Workflow workflow;
