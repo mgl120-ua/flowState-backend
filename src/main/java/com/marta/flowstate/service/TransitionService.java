@@ -1,14 +1,14 @@
 package com.marta.flowstate.service;
 
-import com.marta.flowstate.model.Transition;
-import com.marta.flowstate.repository.TransitionRepository;
 import org.springframework.stereotype.Service;
 import com.marta.flowstate.dto.TransitionDTO;
-import com.marta.flowstate.model.State;
-import com.marta.flowstate.model.Workflow;
-import com.marta.flowstate.repository.StateRepository;
-import com.marta.flowstate.repository.WorkflowRepository;
+import com.marta.flowstate.model.*;
+import com.marta.flowstate.repository.*;
 import com.marta.flowstate.exception.NotFoundException;
+import com.marta.flowstate.action.*;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -18,11 +18,15 @@ public class TransitionService {
     private final TransitionRepository transitionRepository;
     private final StateRepository stateRepository;
     private final WorkflowRepository workflowRepository;
+    private final Transition_ActionRepository transitionActionRepository;
+    private final ActionExecutorFactory actionExecutorFactory;
 
-    public TransitionService(TransitionRepository transitionRepository, StateRepository stateRepository, WorkflowRepository workflowRepository) {
+    public TransitionService(TransitionRepository transitionRepository, StateRepository stateRepository, WorkflowRepository workflowRepository, Transition_ActionRepository transitionActionRepository, ActionExecutorFactory actionExecutorFactory) {
         this.transitionRepository = transitionRepository;
         this.stateRepository = stateRepository;
         this.workflowRepository = workflowRepository;
+        this.transitionActionRepository = transitionActionRepository;
+        this.actionExecutorFactory = actionExecutorFactory;
     }
 
     public List<Transition> getTransitionsByWorkflowId(Long workflowId) {
@@ -65,13 +69,13 @@ public class TransitionService {
         Transition transition = getTransitionById(id);
 
         Workflow workflow = workflowRepository.findById(dto.getWorkflowId())
-                .orElseThrow(() -> new RuntimeException("Workflow id " + dto.getWorkflowId() + " no encontrado"));
+                .orElseThrow(() -> new RuntimeException("Workflow " + dto.getWorkflowId() + " no encontrado"));
 
         State source = stateRepository.findById(dto.getSourceStateId())
-                .orElseThrow(() -> new RuntimeException("Estado origen id " + dto.getSourceStateId() + " no encontrado"));
+                .orElseThrow(() -> new RuntimeException("Estado origen " + dto.getSourceStateId() + " no encontrado"));
 
         State target = stateRepository.findById(dto.getTargetStateId())
-                .orElseThrow(() -> new RuntimeException("Estado destino id " + dto.getTargetStateId() + " no encontrado"));
+                .orElseThrow(() -> new RuntimeException("Estado destino " + dto.getTargetStateId() + " no encontrado"));
 
         transition.setAction(dto.getAction());
         transition.setCondition(dto.getCondition());
@@ -81,4 +85,24 @@ public class TransitionService {
 
         return transitionRepository.save(transition);
     }
+
+    public void executeActionsForTransition(Long transitionId) {
+        List<TransitionAction> transitionActions = transitionActionRepository.findByTransitionId(transitionId);
+        for (TransitionAction ta : transitionActions) {
+            Action action = ta.getAction();
+            ActionExecutor executor = actionExecutorFactory.getExecutor(action.getType());
+            if (executor != null) {
+                try {
+                    executor.execute(action.getConfig());
+                    System.out.println("Acticon ejecutada: " + action.getName() + " (" + action.getType() + ")");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            } else {
+                System.out.println("NO hay ejecutor para esta action: " + action.getName() + action.getType());
+            }
+        }
+    }
+
+
 }

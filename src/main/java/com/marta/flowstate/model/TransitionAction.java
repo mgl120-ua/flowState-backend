@@ -4,13 +4,15 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.*;
 import java.io.Serializable;
+import com.marta.flowstate.model.Action;
+import com.marta.flowstate.model.Transition;
 
 @Entity
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "transition_action")
-public class Transition_Action implements Serializable {
+public class TransitionAction implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
