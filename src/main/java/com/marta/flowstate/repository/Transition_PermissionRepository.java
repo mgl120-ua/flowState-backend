@@ -6,4 +6,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface Transition_PermissionRepository extends JpaRepository<Transition_Permission, Long> {
+
+    boolean existsByTransitionIdAndRolId(Long transitionId, Long rolId);
 }

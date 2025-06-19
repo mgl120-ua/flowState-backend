@@ -9,16 +9,22 @@ import org.springframework.web.bind.annotation.*;
 import com.marta.flowstate.dto.InstanceDTO;
 import com.marta.flowstate.repository.StateRepository;
 import com.marta.flowstate.dto.InstanceDTO;
+import com.marta.flowstate.service.TransitionExecutionService;
 import java.util.List;
+import org.springframework.http.ResponseEntity;
+
 
 @RestController
 @RequestMapping("/flows/{flowId}/instances")
 public class InstanceController {
 
     private final InstanceService instanceService;
+    private final TransitionExecutionService transitionExecutionService;
 
-    public InstanceController(InstanceService instanceService) {
+    public InstanceController(InstanceService instanceService,
+                              TransitionExecutionService transitionExecutionService) {
         this.instanceService = instanceService;
+        this.transitionExecutionService = transitionExecutionService;
     }
 
     @GetMapping
@@ -49,5 +55,14 @@ public class InstanceController {
     @PutMapping("/{instanceId}")
     public Instance updateInstance(@PathVariable Long instanceId, @Valid @RequestBody InstanceDTO dto) {
         return instanceService.updateInstanceFromDTO(instanceId, dto);
+    }
+
+    @PostMapping("/{instanceId}/transitions/{transitionId}/execute")
+    public ResponseEntity<Void> executeTransition(@PathVariable Long flowId,
+                                                  @PathVariable Long instanceId,
+                                                  @PathVariable Long transitionId,
+                                                  @RequestHeader("userId") Long userId) {
+        transitionExecutionService.executeTransition(instanceId, transitionId, userId);
+        return ResponseEntity.ok().build();
     }
 }
