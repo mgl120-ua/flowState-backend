@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.*;
 import java.io.Serializable;
+import java.util.List;
+import java.util.ArrayList;
+import com.marta.flowstate.model.Transition_Permission;
 
 @Entity
 @Data
@@ -29,5 +32,5 @@ public class Transition implements Serializable {
     private Workflow workflow;
 
     @OneToMany(mappedBy = "transition", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Permission> permissions;
+    private List<Transition_Permission> permissions = new ArrayList<>();
 }

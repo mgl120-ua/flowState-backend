@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.*;
 import java.io.Serializable;
+import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @Data
@@ -21,8 +23,8 @@ public class Workflow implements Serializable {
     @JoinColumn(name = "company_id")
     private Company company;
     @OneToMany(mappedBy = "workflow", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Transition> transitions;
+    private List<State> states = new ArrayList<>();
     @OneToMany(mappedBy = "workflow", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<State> states;
+    private List<Transition> transitions = new ArrayList<>();
 
 }
