@@ -17,7 +17,10 @@ public class AppUser implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String name;
+    @Column(unique = true)
     private String email;
+    @Column(nullable = true)
+    private String password;
     @ManyToOne
     @JoinColumn(name = "company_id")
     private Company company;

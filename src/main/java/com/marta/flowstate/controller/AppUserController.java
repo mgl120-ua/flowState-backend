@@ -3,12 +3,16 @@ package com.marta.flowstate.controller;
 import com.marta.flowstate.dto.AppUserDTO;
 import com.marta.flowstate.model.AppUser;
 import com.marta.flowstate.service.AppUserService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 @RestController
 @RequestMapping("/users")
+@SecurityRequirement(name = "bearerAuth")
 public class AppUserController {
 
     private final AppUserService appUserService;
@@ -30,11 +34,6 @@ public class AppUserController {
     @GetMapping("/company/{companyId}")
     public List<AppUser> getUsersByCompanyId(@PathVariable Long companyId) {
         return appUserService.getUsersByCompanyId(companyId);
-    }
-
-    @PostMapping
-    public AppUser createUser(@RequestBody AppUserDTO dto) {
-        return appUserService.createUser(dto);
     }
 
     @DeleteMapping("/{id}")

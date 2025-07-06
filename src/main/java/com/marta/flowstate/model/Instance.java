@@ -4,6 +4,10 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.Map;
+import jakarta.persistence.Convert;
+import com.vladmihalcea.hibernate.type.json.JsonType;
+import org.hibernate.annotations.Type;
 
 @Entity
 @Data
@@ -17,8 +21,9 @@ public class Instance implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(columnDefinition = "json")
-    private String data;
+    @Type(JsonType.class)
+    @Column(name = "data", columnDefinition = "json")
+    private Map<String, Object> data;
 
     @Column(name = "date", nullable = false, columnDefinition = "timestamp default current_timestamp")
     private LocalDateTime date;

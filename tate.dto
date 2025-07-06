@@ -1,0 +1,18 @@
+                                         Table "public.instance"
+   Column    |            Type             | Collation | Nullable |               Default                
+-------------+-----------------------------+-----------+----------+--------------------------------------
+ id          | bigint                      |           | not null | nextval('instance_id_seq'::regclass)
+ data        | json                        |           |          | 
+ date        | timestamp without time zone |           |          | CURRENT_TIMESTAMP
+ state_id    | bigint                      |           | not null | 
+ workflow_id | bigint                      |           | not null | 
+ user_id     | bigint                      |           |          | 
+Indexes:
+    "instance_pkey" PRIMARY KEY, btree (id)
+Foreign-key constraints:
+    "instance_state_id_fkey" FOREIGN KEY (state_id) REFERENCES state(id) ON DELETE CASCADE
+    "instance_user_id_fkey" FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE SET NULL
+    "instance_workflow_id_fkey" FOREIGN KEY (workflow_id) REFERENCES workflow(id) ON DELETE CASCADE
+Referenced by:
+    TABLE "instance_history" CONSTRAINT "instance_history_instance_id_fkey" FOREIGN KEY (instance_id) REFERENCES instance(id) ON DELETE CASCADE
+

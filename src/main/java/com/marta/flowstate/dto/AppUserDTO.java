@@ -6,6 +6,8 @@ import lombok.Data;
 public class AppUserDTO {
     private String name;
     private String email;
-    private Long companyId;
-    private Long roleId;
+    private String password;
+    private Long companyId; //para empleados
+    private String companyName; //para admin
+    private Long roleId; //opcional para empleados
 }

@@ -1,19 +1,26 @@
 package com.marta.flowstate.controller;
+
 import com.marta.flowstate.model.State;
 import com.marta.flowstate.service.StateService;
-import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
-import java.util.List;
 import com.marta.flowstate.dto.StateDTO;
+import com.marta.flowstate.security.SessionUserService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/flows/{flowId}/states")
+@SecurityRequirement(name = "bearerAuth")
 public class StateController {
 
     private final StateService stateService;
+    private final SessionUserService sessionUserService;
 
-    public StateController(StateService stateService) {
+    public StateController(StateService stateService, SessionUserService sessionUserService) {
         this.stateService = stateService;
+        this.sessionUserService = sessionUserService;
     }
 
     @GetMapping
@@ -22,8 +29,9 @@ public class StateController {
     }
 
     @PostMapping
-    public State createState(@PathVariable Long flowId, @RequestBody StateDTO dto) {
-        return stateService.createStateFromDTO(dto);
+    public State createState(@PathVariable Long flowId, @Valid @RequestBody StateDTO dto) {
+        Long companyId = sessionUserService.getCurrentCompanyId();
+        return stateService.createState(flowId, dto, companyId);
     }
 
     @GetMapping("/{stateId}")
@@ -37,7 +45,8 @@ public class StateController {
     }
 
     @PutMapping("/{stateId}")
-    public State updateState(@PathVariable Long stateId, @RequestBody StateDTO dto) {
-        return stateService.updateStateFromDTO(stateId, dto);
+    public State updateState(@PathVariable Long flowId, @PathVariable Long stateId, @RequestBody StateDTO dto) {
+        Long companyId = sessionUserService.getCurrentCompanyId();
+        return stateService.updateState(stateId, dto, flowId, companyId);
     }
 }

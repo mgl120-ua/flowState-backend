@@ -4,9 +4,11 @@ import com.marta.flowstate.model.*;
 import com.marta.flowstate.service.*;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 @RestController
 @RequestMapping("/roles")
+@SecurityRequirement(name = "bearerAuth")
 public class RolController {
 
     private final RolService rolService;

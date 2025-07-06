@@ -7,6 +7,7 @@ import java.util.List;
 
 @Repository
 public interface AppUserRepository extends JpaRepository<AppUser, Long> {
+    AppUser findByEmail(String email);
     boolean existsByEmail(String email);
     List<AppUser> findByCompanyId(Long companyId);
 }

@@ -26,7 +26,7 @@ public class RolService {
 
     public Rol getRolById(Long id) {
         return rolRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Rol not found with id: " + id));
+                .orElseThrow(() -> new RuntimeException("Rol " + id + "no encontrado"));
     }
 
     public Rol createRol(Rol rol) {
@@ -43,7 +43,7 @@ public class RolService {
 
     public void deleteRol(Long id) {
         if (!rolRepository.existsById(id)) {
-            throw new RuntimeException("Rol not found with id: " + id);
+            throw new RuntimeException("Rol" + id+ "no encontrado");
         }
         rolRepository.deleteById(id);
     }

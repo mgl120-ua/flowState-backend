@@ -20,7 +20,7 @@ services:
       dockerfile: Dockerfile
     container_name: flowState_backend
     ports:
-      - "8080:8080"
+      - "8085:8085"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/flowState
       SPRING_DATASOURCE_USERNAME: marta

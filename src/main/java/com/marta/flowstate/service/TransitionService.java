@@ -5,7 +5,6 @@ import com.marta.flowstate.dto.TransitionDTO;
 import com.marta.flowstate.model.*;
 import com.marta.flowstate.repository.*;
 import com.marta.flowstate.exception.NotFoundException;
-import com.marta.flowstate.action.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,35 +17,41 @@ public class TransitionService {
     private final TransitionRepository transitionRepository;
     private final StateRepository stateRepository;
     private final WorkflowRepository workflowRepository;
-    private final Transition_ActionRepository transitionActionRepository;
-    private final ActionExecutorFactory actionExecutorFactory;
+    private final TransitionActionRepository transitionActionRepository;
 
-    public TransitionService(TransitionRepository transitionRepository, StateRepository stateRepository, WorkflowRepository workflowRepository, Transition_ActionRepository transitionActionRepository, ActionExecutorFactory actionExecutorFactory) {
+    public TransitionService(TransitionRepository transitionRepository, StateRepository stateRepository, WorkflowRepository workflowRepository, TransitionActionRepository transitionActionRepository) {
         this.transitionRepository = transitionRepository;
         this.stateRepository = stateRepository;
         this.workflowRepository = workflowRepository;
         this.transitionActionRepository = transitionActionRepository;
-        this.actionExecutorFactory = actionExecutorFactory;
     }
 
-    public List<Transition> getTransitionsByWorkflowId(Long workflowId) {
-        return transitionRepository.findByWorkflowId(workflowId);
-    }
-
-    public Transition getTransitionById(Long id) {
+    public Transition getTransitionById(Long id, Long companyId) {
         return transitionRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Transicion :" + id + "no encontrado"));
+                .filter(t -> t.getWorkflow().getCompany().getId().equals(companyId))
+                .orElseThrow(() -> new NotFoundException("Transición no encontrada o no pertenece a tu empresa"));
     }
 
-    public Transition createTransitionFromDTO(TransitionDTO dto, Long pathFlowId) {
-        Workflow workflow = workflowRepository.findById(dto.getWorkflowId())
-                .orElseThrow(() -> new NotFoundException("Flujo  :" + dto.getWorkflowId() + " no encontrado"));
+    public List<Transition> getTransitionsByWorkflowId(Long workflowId, Long companyId) {
+        Workflow wf = workflowRepository.findById(workflowId)
+                .filter(w -> w.getCompany().getId().equals(companyId))
+                .orElseThrow(() -> new NotFoundException("Flujo " + workflowId + " no encontrado o no pertenece a tu empresa"));
+
+        return transitionRepository.findByWorkflowId(wf.getId());
+    }
+
+    public Transition createTransitionFromDTO(TransitionDTO dto, Long pathFlowId, Long companyId) {
+        Workflow workflow = workflowRepository.findById(pathFlowId)
+                .filter(wf -> wf.getCompany().getId().equals(companyId))
+                .orElseThrow(() -> new NotFoundException("Flujo no encontrado o no pertenece a tu empresa"));
 
         State source = stateRepository.findById(dto.getSourceStateId())
-                .orElseThrow(() -> new NotFoundException("Estado origen : " + dto.getSourceStateId() + " no encontrado"));
+                .filter(s -> s.getWorkflow().getId().equals(pathFlowId))
+                .orElseThrow(() -> new IllegalArgumentException("El estado origen no pertenece al flujo"));
 
         State target = stateRepository.findById(dto.getTargetStateId())
-                .orElseThrow(() -> new NotFoundException("Estado destino  :" + dto.getTargetStateId() + " no encontrado"));
+                .filter(s -> s.getWorkflow().getId().equals(pathFlowId))
+                .orElseThrow(() -> new IllegalArgumentException("El estado destino no pertenece al flujo"));
 
         Transition t = new Transition();
         t.setAction(dto.getAction());
@@ -58,24 +63,31 @@ public class TransitionService {
         return transitionRepository.save(t);
     }
 
-    public void deleteTransition(Long id) {
-        if (!transitionRepository.existsById(id)) {
-            throw new RuntimeException("Error id:" + id + "no encontrado");
-        }
-        transitionRepository.deleteById(id);
+
+
+    public void deleteTransition(Long id, Long companyId) {
+        Transition t = getTransitionById(id, companyId);
+        transitionRepository.delete(t);
     }
 
-    public Transition updateTransitionFromDTO(Long id, TransitionDTO dto) {
-        Transition transition = getTransitionById(id);
+    public Transition updateTransitionFromDTO(Long id, TransitionDTO dto, Long pathFlowId, Long companyId) {
+        Transition transition = getTransitionById(id, companyId);
 
-        Workflow workflow = workflowRepository.findById(dto.getWorkflowId())
-                .orElseThrow(() -> new RuntimeException("Workflow " + dto.getWorkflowId() + " no encontrado"));
+        if (!transition.getWorkflow().getId().equals(pathFlowId)) {
+            throw new IllegalArgumentException("La transición no pertenece al flujo indicado");
+        }
+
+        Workflow workflow = workflowRepository.findById(pathFlowId)
+                .filter(wf -> wf.getCompany().getId().equals(companyId))
+                .orElseThrow(() -> new NotFoundException("Flujo no encontrado o no pertenece a tu empresa"));
 
         State source = stateRepository.findById(dto.getSourceStateId())
-                .orElseThrow(() -> new RuntimeException("Estado origen " + dto.getSourceStateId() + " no encontrado"));
+                .filter(s -> s.getWorkflow().getId().equals(pathFlowId))
+                .orElseThrow(() -> new IllegalArgumentException("El estado origen no pertenece al flujo"));
 
         State target = stateRepository.findById(dto.getTargetStateId())
-                .orElseThrow(() -> new RuntimeException("Estado destino " + dto.getTargetStateId() + " no encontrado"));
+                .filter(s -> s.getWorkflow().getId().equals(pathFlowId))
+                .orElseThrow(() -> new IllegalArgumentException("El estado destino no pertenece al flujo"));
 
         transition.setAction(dto.getAction());
         transition.setCondition(dto.getCondition());
@@ -85,24 +97,5 @@ public class TransitionService {
 
         return transitionRepository.save(transition);
     }
-
-    public void executeActionsForTransition(Long transitionId) {
-        List<TransitionAction> transitionActions = transitionActionRepository.findByTransitionId(transitionId);
-        for (TransitionAction ta : transitionActions) {
-            Action action = ta.getAction();
-            ActionExecutor executor = actionExecutorFactory.getExecutor(action.getType());
-            if (executor != null) {
-                try {
-                    executor.execute(action.getConfig());
-                    System.out.println("Acticon ejecutada: " + action.getName() + " (" + action.getType() + ")");
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            } else {
-                System.out.println("NO hay ejecutor para esta action: " + action.getName() + action.getType());
-            }
-        }
-    }
-
 
 }
