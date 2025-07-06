@@ -7,6 +7,8 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.ArrayList;
 import com.marta.flowstate.model.Transition_Permission;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 @Entity
 @Data
@@ -29,7 +31,9 @@ public class Transition implements Serializable {
     private State target_state;
     @ManyToOne
     @JoinColumn(name = "workflow_id")
+    @JsonBackReference
     private Workflow workflow;
+
 
     @OneToMany(mappedBy = "transition", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Transition_Permission> permissions = new ArrayList<>();

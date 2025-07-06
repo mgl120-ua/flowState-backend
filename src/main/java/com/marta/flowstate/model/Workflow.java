@@ -6,6 +6,8 @@ import java.time.*;
 import java.io.Serializable;
 import java.util.List;
 import java.util.ArrayList;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 @Entity
 @Data
@@ -23,8 +25,10 @@ public class Workflow implements Serializable {
     @JoinColumn(name = "company_id")
     private Company company;
     @OneToMany(mappedBy = "workflow", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
     private List<State> states = new ArrayList<>();
     @OneToMany(mappedBy = "workflow", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
     private List<Transition> transitions = new ArrayList<>();
 
 }

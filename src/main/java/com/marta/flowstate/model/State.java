@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.*;
 import java.io.Serializable;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 @Entity
 @Data
@@ -22,5 +24,7 @@ public class State implements Serializable {
     private StateType type = StateType.NORMAL;
     @ManyToOne
     @JoinColumn(name = "workflow_id")
+    @JsonBackReference
     private Workflow workflow;
+
 }
