@@ -71,13 +71,13 @@ public class TransitionExecutionService {
             throw new IllegalArgumentException("Transición no permitida desde el estado actual");
         }
 
-        // Validar permisos
-        //boolean hasPermission = permissionRepository.existsByTransitionIdAndRolId(
-              //  transitionId, instance.getUser().getRol().getId());
+        //Validar permisos
+        boolean hasPermission = permissionRepository.existsByTransition_IdAndRol_Id(
+                transitionId, instance.getUser().getRol().getId());
 
-        //if (!hasPermission) {
-          //  throw new IllegalArgumentException("User has no permission to execute transition");
-        //}
+        if (!hasPermission) {
+            throw new IllegalArgumentException("Usuario no tiene permisos de ejecucion");
+        }
 
         //Evaluar condición
         Map<String, Object> dataMap;

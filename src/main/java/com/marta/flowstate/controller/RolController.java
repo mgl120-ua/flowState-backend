@@ -5,6 +5,7 @@ import com.marta.flowstate.service.*;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import com.marta.flowstate.dto.RolDTO;
 
 @RestController
 @RequestMapping("/roles")
@@ -22,25 +23,20 @@ public class RolController {
         return rolService.getAllRoles();
     }
 
-    @GetMapping("/company/{companyId}")
-    public List<Rol> getRolesByCompanyId(@PathVariable Long companyId) {
-        return rolService.getRolesByCompanyId(companyId);
-    }
-
     @GetMapping("/{id}")
     public Rol getRolById(@PathVariable Long id) {
         return rolService.getRolById(id);
     }
 
     @PostMapping
-    public Rol createRol(@RequestBody Rol rol) {
-        return rolService.createRol(rol);
+    public Rol createRol(@RequestBody RolDTO rolDTO) {return rolService.createRolFromDto(rolDTO);
     }
 
     @PutMapping("/{id}")
-    public Rol updateRol(@PathVariable Long id, @RequestBody Rol rol) {
-        return rolService.updateRol(id, rol);
+    public Rol updateRol(@PathVariable Long id, @RequestBody RolDTO dto) {
+        return rolService.updateRolFromDto(id, dto);
     }
+
 
     @DeleteMapping("/{id}")
     public void deleteRol(@PathVariable Long id) {
