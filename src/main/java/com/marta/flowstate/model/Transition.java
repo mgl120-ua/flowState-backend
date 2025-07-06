@@ -27,4 +27,7 @@ public class Transition implements Serializable {
     @ManyToOne
     @JoinColumn(name = "workflow_id")
     private Workflow workflow;
+
+    @OneToMany(mappedBy = "transition", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Permission> permissions;
 }

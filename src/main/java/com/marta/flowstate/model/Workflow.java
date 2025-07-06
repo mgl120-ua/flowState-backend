@@ -20,4 +20,9 @@ public class Workflow implements Serializable {
     @ManyToOne
     @JoinColumn(name = "company_id")
     private Company company;
+    @OneToMany(mappedBy = "workflow", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Transition> transitions;
+    @OneToMany(mappedBy = "workflow", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<State> states;
+
 }
