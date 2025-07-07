@@ -34,22 +34,4 @@ public class AuthController {
         return ResponseEntity.ok(authService.login(dto));
     }
 
-    @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName();
-
-        AppUser user = userRepo.findByEmail(email);
-        if (user == null) {
-            return ResponseEntity.status(404).body("Usuario no encontrado");
-        }
-
-        return ResponseEntity.ok(Map.of(
-                "id", user.getId(),
-                "name", user.getName(),
-                "email", user.getEmail(),
-                "role", user.getRol().getName(),
-                "companyId", user.getCompany().getId()
-        ));
-    }
 }
