@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.*;
 import java.io.Serializable;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
 
 @Entity
 @Data
@@ -18,6 +20,7 @@ public class Transition_Permission implements Serializable {
     private Long id;
     @ManyToOne
     @JoinColumn(name = "transition_id")
+    @JsonBackReference
     private Transition transition;
     @ManyToOne
     @JoinColumn(name = "role_id")

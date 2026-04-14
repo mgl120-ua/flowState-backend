@@ -36,5 +36,6 @@ public class Transition implements Serializable {
 
 
     @OneToMany(mappedBy = "transition", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
     private List<Transition_Permission> permissions = new ArrayList<>();
 }

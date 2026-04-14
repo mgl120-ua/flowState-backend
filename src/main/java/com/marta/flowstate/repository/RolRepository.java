@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface RolRepository extends JpaRepository<Rol, Long> {
     List<Rol> findByCompanyId(Long companyId);
     Optional<Rol> findByCompanyIdAndName(Long companyId, String name);
+    Optional<Rol> findByCompanyIdAndId(Long companyId, Long id);
 }

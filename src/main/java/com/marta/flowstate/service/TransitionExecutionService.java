@@ -13,6 +13,8 @@ import com.marta.flowstate.repository.Instance_HistoryRepository;
 import com.marta.flowstate.util.ConditionCheck;
 import com.marta.flowstate.repository.TransitionActionRepository;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +27,8 @@ import com.marta.flowstate.model.TransitionAction;
 
 @Service
 public class TransitionExecutionService {
+
+    private static final Logger logger = LoggerFactory.getLogger(TransitionExecutionService.class);
 
     private final InstanceRepository instanceRepository;
     private final TransitionRepository transitionRepository;
@@ -88,8 +92,8 @@ public class TransitionExecutionService {
         }
 
         if (transition.getCondition() != null && !transition.getCondition().isBlank()) {
-            System.out.println("DATA MAP: " + dataMap);
-            System.out.println("CONDICION: " + transition.getCondition());
+            logger.debug("DATA MAP: {}", dataMap);
+            logger.debug("CONDICION: {}", transition.getCondition());
             boolean conditionOk = conditionCheck.evaluate(transition.getCondition(), dataMap);
             if (!conditionOk) {
                 throw new IllegalArgumentException("No cumple la condición: " + transition.getCondition());

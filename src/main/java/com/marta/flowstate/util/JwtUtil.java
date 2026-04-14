@@ -14,10 +14,35 @@ import java.util.Map;
 @Component
 public class JwtUtil {
 
-    private static final String SECRET_KEY = "claveSecreta12345678901234567890";
+    private final String secretKey;
+
+    public JwtUtil(@org.springframework.beans.factory.annotation.Value("${jwt.secret}") String secretKey) {
+        this.secretKey = secretKey;
+    }
 
     private Key getKey() {
-        return Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
+        return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private Claims getClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(getKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    public String extractUsername(String token) {
+        return getClaims(token).getSubject();
+    }
+
+    public boolean isTokenValid(String token, String email) {
+        if (email == null) return false;
+        try {
+            return extractUsername(token).equals(email);
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
     }
 
     public String generateToken(AppUser user) {

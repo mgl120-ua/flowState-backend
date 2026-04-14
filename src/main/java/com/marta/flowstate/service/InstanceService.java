@@ -6,6 +6,7 @@ import com.marta.flowstate.model.State;
 import com.marta.flowstate.model.Workflow;
 import com.marta.flowstate.model.AppUser;
 import com.marta.flowstate.model.StateType;
+import java.time.LocalDateTime;
 
 import com.marta.flowstate.repository.InstanceRepository;
 import com.marta.flowstate.repository.Instance_HistoryRepository;
@@ -16,6 +17,8 @@ import com.marta.flowstate.repository.StateRepository;
 import com.marta.flowstate.security.SessionUserService;
 import com.marta.flowstate.dto.InstanceDTO;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -24,6 +27,8 @@ import com.marta.flowstate.security.SessionUserService;
 
 @Service
 public class InstanceService {
+
+    private static final Logger logger = LoggerFactory.getLogger(InstanceService.class);
 
     private final InstanceRepository instanceRepository;
     private final Instance_HistoryRepository instanceHistoryRepository;
@@ -65,11 +70,9 @@ public class InstanceService {
         Workflow workflow = workflowRepository.findById(flowId)
                 .filter(w -> w.getCompany().getId().equals(companyId))
                 .orElseThrow(() -> new RuntimeException("Flujo no encontrado o no pertenece a tu empresa"));
-        System.out.println("flowId: " + flowId);
-        System.out.println("companyId del token: " + companyId);
-        workflowRepository.findById(flowId).ifPresent(w -> {
-            System.out.println("companyId del flujo: " + w.getCompany().getId());
-        });
+        logger.debug("flowId: {}", flowId);
+        logger.debug("companyId del token: {}", companyId);
+        workflowRepository.findById(flowId).ifPresent(w -> logger.debug("companyId del flujo: {}", w.getCompany().getId()));
 
         AppUser user = sessionUserService.getCurrentUser();
         if (user == null) throw new RuntimeException("Usuario no encontrado");
@@ -84,6 +87,7 @@ public class InstanceService {
         instance.setState(initialState);
         instance.setWorkflow(workflow);
         instance.setUser(user);
+        instance.setDate(LocalDateTime.now());
 
         return instanceRepository.save(instance);
     }

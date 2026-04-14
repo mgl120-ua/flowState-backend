@@ -38,7 +38,8 @@ public class AuthService {
 
     public AppUser registerEmployee(RegisterEmployeeDTO dto) {
         Company company = companyRepo.findById(dto.companyId).orElseThrow(() -> new RuntimeException("Empresa no encontrada"));
-        Rol rol = rolRepo.findById(dto.roleId).orElseThrow(() -> new RuntimeException("Rol no encontrado"));
+        Rol rol = rolRepo.findByCompanyIdAndId(dto.companyId, dto.roleId)
+                .orElseThrow(() -> new RuntimeException("Rol no encontrado o no pertenece a la empresa"));
         AppUser user = new AppUser();
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
