@@ -3,6 +3,7 @@ package com.marta.flowstate.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 
+import com.marta.flowstate.exception.NotFoundException;
 import com.marta.flowstate.model.AppUser;
 import com.marta.flowstate.model.Instance;
 import com.marta.flowstate.model.Instance_History;
@@ -73,9 +74,9 @@ public class TransitionExecutionService {
 
     @Transactional
     public void executeTransition(Long instanceId, Long transitionId, Long userId) {
-        Instance instance = instanceRepository.findById(instanceId).orElseThrow(() -> new IllegalArgumentException("Instancia no encontrada"));
+        Instance instance = instanceRepository.findById(instanceId).orElseThrow(() -> new NotFoundException("Instancia no encontrada"));
 
-        Transition transition = transitionRepository.findById(transitionId).orElseThrow(() -> new IllegalArgumentException("Transicion no encontrada"));
+        Transition transition = transitionRepository.findById(transitionId).orElseThrow(() -> new NotFoundException("Transicion no encontrada"));
 
         AppUser executor = appUserRepository.findById(userId).orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuario no encontrado"));
 

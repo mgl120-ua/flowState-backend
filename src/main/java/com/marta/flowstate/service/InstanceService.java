@@ -16,6 +16,7 @@ import com.marta.flowstate.repository.AppUserRepository;
 import com.marta.flowstate.repository.StateRepository;
 import com.marta.flowstate.security.SessionUserService;
 import com.marta.flowstate.dto.InstanceDTO;
+import com.marta.flowstate.exception.NotFoundException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,30 +58,30 @@ public class InstanceService {
     public List<Instance> getInstancesByWorkflowId(Long workflowId, Long companyId) {
         Workflow workflow = workflowRepository.findById(workflowId)
                 .filter(wf -> wf.getCompany().getId().equals(companyId))
-                .orElseThrow(() -> new RuntimeException("Flujo no encontrado o no pertenece a tu empresa"));
+                .orElseThrow(() -> new NotFoundException("Flujo no encontrado o no pertenece a tu empresa"));
         return instanceRepository.findByWorkflowId(workflowId);
     }
 
     public Instance getInstanceById(Long id) {
         return instanceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Instancia:" + id + " no encontrada"));
+                .orElseThrow(() -> new NotFoundException("Instancia: " + id + " no encontrada"));
     }
 
     public Instance createInstance(Long flowId, InstanceDTO dto, Long companyId) {
         Workflow workflow = workflowRepository.findById(flowId)
                 .filter(w -> w.getCompany().getId().equals(companyId))
-                .orElseThrow(() -> new RuntimeException("Flujo no encontrado o no pertenece a tu empresa"));
+                .orElseThrow(() -> new NotFoundException("Flujo no encontrado o no pertenece a tu empresa"));
         logger.debug("flowId: {}", flowId);
         logger.debug("companyId del token: {}", companyId);
         workflowRepository.findById(flowId).ifPresent(w -> logger.debug("companyId del flujo: {}", w.getCompany().getId()));
 
         AppUser user = sessionUserService.getCurrentUser();
-        if (user == null) throw new RuntimeException("Usuario no encontrado");
+        if (user == null) throw new NotFoundException("Usuario no encontrado");
 
         // Encuentra el estado inicial automáticamente
         State initialState = stateRepository
                 .findFirstByWorkflowIdAndType(flowId, StateType.INITIAL)
-                .orElseThrow(() -> new RuntimeException("Estado inicial no encontrado"));
+                .orElseThrow(() -> new IllegalArgumentException("El flujo no tiene estado inicial"));
 
         Instance instance = new Instance();
         instance.setData(dto.getData());
@@ -95,7 +96,7 @@ public class InstanceService {
     public void deleteInstance(Long id, Long companyId) {
         Instance instance = getInstanceById(id);
         if (!instance.getWorkflow().getCompany().getId().equals(companyId)) {
-            throw new RuntimeException("No tienes permisos para eliminar esta instancia");
+            throw new NotFoundException("Instancia: " + id + " no encontrada");
         }
         instanceRepository.delete(instance);
     }
@@ -103,7 +104,7 @@ public class InstanceService {
     public List<Instance_History> getInstanceHistory(Long instanceId, Long companyId) {
         Instance instance = getInstanceById(instanceId);
         if (!instance.getWorkflow().getCompany().getId().equals(companyId)) {
-            throw new RuntimeException("No tienes acceso al historial de esta instancia");
+            throw new NotFoundException("Instancia: " + instanceId + " no encontrada");
         }
         return instanceHistoryRepository.findByInstanceId(instanceId);
     }
@@ -112,12 +113,12 @@ public class InstanceService {
         Instance instance = getInstanceById(id);
 
         if (!instance.getWorkflow().getCompany().getId().equals(companyId)) {
-            throw new RuntimeException("No tienes permisos para modificar esta instancia");
+            throw new NotFoundException("Instancia: " + id + " no encontrada");
         }
 
         Workflow workflow = workflowRepository.findById(flowId)
                 .filter(wf -> wf.getCompany().getId().equals(companyId))
-                .orElseThrow(() -> new RuntimeException("Flujo no encontrado o no pertenece a tu empresa"));
+                .orElseThrow(() -> new NotFoundException("Flujo no encontrado o no pertenece a tu empresa"));
 
         AppUser user = sessionUserService.getCurrentUser();
 

@@ -4,7 +4,6 @@ import com.marta.flowstate.model.AppUser;
 import com.marta.flowstate.model.Company;
 import com.marta.flowstate.model.Rol;
 import com.marta.flowstate.service.AppUserService;
-import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +12,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -22,8 +20,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -80,9 +76,8 @@ class AppUserControllerIntegrationTest {
     void deleteUserWithoutAdminRoleIsForbidden() throws Exception {
         authenticateAs("EMPLEADO");
 
-        //Sin filtros, el AccessDeniedException no lo traduce a 403 el ExceptionTranslationFilter, asi que sube tal cual
-        ServletException ex = assertThrows(ServletException.class, () -> mockMvc.perform(delete("/users/10")));
-        assertInstanceOf(AccessDeniedException.class, ex.getCause());
+        mockMvc.perform(delete("/users/10"))
+                .andExpect(status().isForbidden());
 
         verify(appUserService, never()).deleteUser(anyLong());
     }

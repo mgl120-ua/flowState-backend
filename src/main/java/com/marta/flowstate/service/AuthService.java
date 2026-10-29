@@ -5,6 +5,7 @@ import com.marta.flowstate.model.*;
 import com.marta.flowstate.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.marta.flowstate.exception.UnauthorizedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import com.marta.flowstate.util.JwtUtil;
 import java.util.Map;
@@ -37,9 +38,9 @@ public class AuthService {
     }
 
     public AppUser registerEmployee(RegisterEmployeeDTO dto) {
-        Company company = companyRepo.findById(dto.companyId).orElseThrow(() -> new RuntimeException("Empresa no encontrada"));
+        Company company = companyRepo.findById(dto.companyId).orElseThrow(() -> new IllegalArgumentException("Empresa no encontrada"));
         Rol rol = rolRepo.findByCompanyIdAndId(dto.companyId, dto.roleId)
-                .orElseThrow(() -> new RuntimeException("Rol no encontrado o no pertenece a la empresa"));
+                .orElseThrow(() -> new IllegalArgumentException("Rol no encontrado o no pertenece a la empresa"));
         AppUser user = new AppUser();
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
@@ -52,7 +53,7 @@ public class AuthService {
     public Map<String, Object> login(LoginDTO dto) {
         AppUser user = userRepo.findByEmail(dto.getEmail());
         if (user == null || !passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Credenciales incorrectas");
+            throw new UnauthorizedException("Credenciales incorrectas");
         }
 
         String token = jwtUtil.generateToken(user);
