@@ -11,6 +11,7 @@ import com.marta.flowstate.model.Instance;
 import com.marta.flowstate.model.Instance_History;
 import com.marta.flowstate.model.Rol;
 import com.marta.flowstate.model.State;
+import com.marta.flowstate.model.StateType;
 import com.marta.flowstate.model.Transition;
 import com.marta.flowstate.model.TransitionAction;
 import com.marta.flowstate.model.Workflow;
@@ -342,6 +343,109 @@ class TransitionExecutionServiceTest {
         assertEquals("La API respondió 503", trace.getError());
         verify(actionExecutionRepository, never()).saveAll(any());
         verify(mailService, never()).sendEmail(anyString(), anyString(), anyString());
+    }
+
+    private State state(Long id, StateType type) {
+        State state = new State();
+        state.setId(id);
+        state.setName("S" + id);
+        state.setType(type);
+        return state;
+    }
+
+    private Transition automatic(Long id, State from, State to, String condition) {
+        Transition t = new Transition();
+        t.setId(id);
+        t.setSource_state(from);
+        t.setTarget_state(to);
+        t.setCondition(condition);
+        t.setAutomatic(true);
+        return t;
+    }
+
+    private Instance prepareManualTransition(State from, State to) {
+        Rol rol = new Rol();
+        rol.setId(30L);
+        Instance instance = instanceWithCreatorRol(1L, rol);
+        instance.setState(from);
+        Transition manual = new Transition();
+        manual.setId(2L);
+        manual.setSource_state(from);
+        manual.setTarget_state(to);
+        when(instanceRepository.findById(1L)).thenReturn(Optional.of(instance));
+        when(transitionRepository.findById(2L)).thenReturn(Optional.of(manual));
+        when(appUserRepository.findById(42L)).thenReturn(Optional.of(executor(42L, 1L, rol)));
+        when(permissionRepository.existsByTransition_IdAndRol_Id(2L, 30L)).thenReturn(true);
+        return instance;
+    }
+
+    @Test
+    void automaticTransitionsRunAfterManualOneUsingFirstMatchingCondition() {
+        State nuevo = state(100L, StateType.INITIAL);
+        State validando = state(101L, StateType.NORMAL);
+        State aprobado = state(102L, StateType.FINAL);
+        State rechazado = state(103L, StateType.FINAL);
+        Instance instance = prepareManualTransition(nuevo, validando);
+        Transition toAprobado = automatic(10L, validando, aprobado, "amount >= 1000");
+        Transition toRechazado = automatic(11L, validando, rechazado, "true");
+        when(transitionRepository.findAutomaticFromState(101L)).thenReturn(List.of(toAprobado, toRechazado));
+        when(conditionCheck.evaluate(eq("amount >= 1000"), any())).thenReturn(false);
+        when(conditionCheck.evaluate(eq("true"), any())).thenReturn(true);
+
+        Instance result = transitionExecutionService.executeTransition(1L, 2L, 42L);
+
+        assertEquals(rechazado, result.getState());
+        ArgumentCaptor<Instance_History> history = ArgumentCaptor.forClass(Instance_History.class);
+        verify(historyRepository, times(2)).save(history.capture());
+        assertEquals(42L, history.getAllValues().get(0).getChanged_by());
+        assertNull(history.getAllValues().get(1).getChanged_by(), "las automáticas las ejecuta el sistema");
+        assertEquals(toRechazado, history.getAllValues().get(1).getTransition());
+        verify(transitionRepository, never()).findAutomaticFromState(102L);
+        verify(transitionRepository, never()).findAutomaticFromState(103L);
+    }
+
+    @Test
+    void automaticCycleStopsAtMaximumSteps() {
+        State a = state(100L, StateType.NORMAL);
+        State b = state(101L, StateType.NORMAL);
+        prepareManualTransition(a, b);
+        when(transitionRepository.findAutomaticFromState(101L)).thenReturn(List.of(automatic(10L, b, a, null)));
+        when(transitionRepository.findAutomaticFromState(100L)).thenReturn(List.of(automatic(11L, a, b, null)));
+        when(conditionCheck.evaluate(isNull(), any())).thenReturn(true);
+
+        transitionExecutionService.executeTransition(1L, 2L, 42L);
+
+        verify(historyRepository, times(1 + TransitionExecutionService.MAX_AUTOMATIC_STEPS)).save(any());
+    }
+
+    @Test
+    void runAutomaticTransitionsFromInitialStateOnCreation() {
+        State nuevo = state(100L, StateType.INITIAL);
+        State listo = state(101L, StateType.NORMAL);
+        Instance instance = instanceWithCreatorRol(1L, new Rol());
+        instance.setState(nuevo);
+        when(instanceRepository.findById(1L)).thenReturn(Optional.of(instance));
+        when(transitionRepository.findAutomaticFromState(100L)).thenReturn(List.of(automatic(10L, nuevo, listo, "amount > 100")));
+        when(conditionCheck.evaluate(eq("amount > 100"), any())).thenReturn(true);
+
+        Instance result = transitionExecutionService.runAutomaticTransitions(1L);
+
+        assertEquals(listo, result.getState());
+        verify(historyRepository).save(any());
+        verify(mailService, never()).sendEmail(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void withoutAutomaticTransitionsInstanceStaysInState() {
+        State nuevo = state(100L, StateType.INITIAL);
+        Instance instance = instanceWithCreatorRol(1L, new Rol());
+        instance.setState(nuevo);
+        when(instanceRepository.findById(1L)).thenReturn(Optional.of(instance));
+
+        Instance result = transitionExecutionService.runAutomaticTransitions(1L);
+
+        assertEquals(nuevo, result.getState());
+        verify(historyRepository, never()).save(any());
     }
 
     private Company company(Long id) {

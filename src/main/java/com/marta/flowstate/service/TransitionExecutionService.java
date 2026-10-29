@@ -10,6 +10,7 @@ import com.marta.flowstate.model.ActionExecution;
 import com.marta.flowstate.model.AppUser;
 import com.marta.flowstate.model.Instance;
 import com.marta.flowstate.model.Instance_History;
+import com.marta.flowstate.model.StateType;
 import com.marta.flowstate.model.Transition;
 import com.marta.flowstate.repository.ActionExecutionRepository;
 import com.marta.flowstate.repository.AppUserRepository;
@@ -42,6 +43,8 @@ public class TransitionExecutionService {
     private static final Logger logger = LoggerFactory.getLogger(TransitionExecutionService.class);
     //Tamaño máximo de la respuesta que se guarda en la traza (la completa queda en los datos de la instancia)
     private static final int MAX_TRACE_RESPONSE_CHARS = 8 * 1024;
+    //Límite de transiciones automáticas encadenadas en una petición, para cortar ciclos
+    static final int MAX_AUTOMATIC_STEPS = 20;
 
     private final InstanceRepository instanceRepository;
     private final TransitionRepository transitionRepository;
@@ -102,6 +105,26 @@ public class TransitionExecutionService {
         }
     }
 
+    /**
+     * Ejecuta las transiciones automáticas desde el estado actual de la instancia (por ejemplo, al crearla).
+     * Mismo tratamiento de errores que executeTransition.
+     */
+    public Instance runAutomaticTransitions(Long instanceId) {
+        try {
+            return transactionTemplate.execute(status -> {
+                Instance instance = instanceRepository.findById(instanceId)
+                        .orElseThrow(() -> new NotFoundException("Instancia no encontrada"));
+                List<ActionExecution> executions = new ArrayList<>();
+                runAutomatic(instance, executions);
+                actionExecutionRepository.saveAll(executions);
+                return instance;
+            });
+        } catch (ActionExecutionException e) {
+            executionTraceService.saveAll(e.getExecutions());
+            throw e;
+        }
+    }
+
     private Instance doExecuteTransition(Long instanceId, Long transitionId, Long userId) {
         Instance instance = instanceRepository.findById(instanceId).orElseThrow(() -> new NotFoundException("Instancia no encontrada"));
 
@@ -147,6 +170,7 @@ public class TransitionExecutionService {
 
         List<ActionExecution> executions = new ArrayList<>();
         applyTransition(instance, transition, userId, executions);
+        runAutomatic(instance, executions);
         actionExecutionRepository.saveAll(executions);
 
         if (instance.getUser() != null && instance.getUser().getEmail() != null) {
@@ -160,6 +184,28 @@ public class TransitionExecutionService {
             mailService.sendEmail(instance.getUser().getEmail(), subject, message);
         }
         return instance;
+    }
+
+    /**
+     * Mientras el estado actual tenga una transición automática cuya condición se cumpla, la ejecuta
+     * (la primera por id). Se detiene en un estado FINAL, si no hay ninguna aplicable o al llegar al límite de pasos.
+     */
+    private void runAutomatic(Instance instance, List<ActionExecution> executions) {
+        for (int step = 0; ; step++) {
+            if (instance.getState().getType() == StateType.FINAL) return;
+            Transition next = transitionRepository.findAutomaticFromState(instance.getState().getId()).stream()
+                    .filter(t -> conditionCheck.evaluate(t.getCondition(), instance.getData()))
+                    .findFirst()
+                    .orElse(null);
+            if (next == null) return;
+            if (step >= MAX_AUTOMATIC_STEPS) {
+                logger.warn("Instancia {}: se alcanzó el máximo de {} transiciones automáticas seguidas (¿ciclo?) en el estado '{}'",
+                        instance.getId(), MAX_AUTOMATIC_STEPS, instance.getState().getName());
+                return;
+            }
+            logger.debug("Instancia {}: transición automática {}", instance.getId(), next.getId());
+            applyTransition(instance, next, null, executions);
+        }
     }
 
     /**

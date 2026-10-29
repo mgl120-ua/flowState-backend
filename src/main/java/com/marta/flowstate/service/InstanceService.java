@@ -39,6 +39,7 @@ public class InstanceService {
     private final AppUserRepository appUserRepository;
     private final SessionUserService sessionUserService;
     private final ExecutionTraceService executionTraceService;
+    private final TransitionExecutionService transitionExecutionService;
 
     public InstanceService(
             InstanceRepository instanceRepository,
@@ -47,7 +48,8 @@ public class InstanceService {
             WorkflowRepository workflowRepository,
             AppUserRepository appUserRepository,
             SessionUserService sessionUserService,
-            ExecutionTraceService executionTraceService
+            ExecutionTraceService executionTraceService,
+            TransitionExecutionService transitionExecutionService
     ) {
         this.instanceRepository = instanceRepository;
         this.instanceHistoryRepository = instanceHistoryRepository;
@@ -56,6 +58,7 @@ public class InstanceService {
         this.appUserRepository = appUserRepository;
         this.sessionUserService = sessionUserService;
         this.executionTraceService = executionTraceService;
+        this.transitionExecutionService = transitionExecutionService;
     }
 
 
@@ -94,7 +97,9 @@ public class InstanceService {
         instance.setUser(user);
         instance.setDate(LocalDateTime.now());
 
-        return instanceRepository.save(instance);
+        Instance saved = instanceRepository.save(instance);
+        //La instancia queda creada aunque falle una acción automática: solo se deshace esa transición
+        return transitionExecutionService.runAutomaticTransitions(saved.getId());
     }
 
     public void deleteInstance(Long id, Long companyId) {

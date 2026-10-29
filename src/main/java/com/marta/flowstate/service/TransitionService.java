@@ -56,6 +56,7 @@ public class TransitionService {
         Transition t = new Transition();
         t.setAction(dto.getAction());
         t.setCondition(dto.getCondition());
+        t.setAutomatic(Boolean.TRUE.equals(dto.getAutomatic()));
         t.setWorkflow(workflow);
         t.setSource_state(source);
         t.setTarget_state(target);
@@ -91,6 +92,7 @@ public class TransitionService {
 
         transition.setAction(dto.getAction());
         transition.setCondition(dto.getCondition());
+        transition.setAutomatic(Boolean.TRUE.equals(dto.getAutomatic()));
         transition.setWorkflow(workflow);
         transition.setSource_state(source);
         transition.setTarget_state(target);

@@ -42,6 +42,10 @@ Variables de entorno requeridas:
 - `SPRING_MAIL_PASSWORD` - contraseña del servicio SMTP
 - `JWT_SECRET` - clave secreta para firmar JWT
 
+Variables opcionales:
+
+- `FLOWSTATE_HTTP_ALLOW_PRIVATE_HOSTS` - `true` permite que las acciones HTTP llamen a direcciones internas (`localhost`, redes privadas). Por defecto `false`; actívalo solo para pruebas locales
+
 Perfiles de Spring disponibles:
 
 - `local`
@@ -95,6 +99,25 @@ Si falta alguna variable obligatoria, `docker compose` se detiene indicando cuá
 - `POST /auth/register/admin` crea una empresa nueva y su usuario administrador (rol `ADMIN`).
 - Los empleados solo pueden registrarse con una invitación. Un `ADMIN` la crea con `POST /invitations` (`roleId` de un rol de su empresa y, opcionalmente, el `email` del invitado) y comparte el `code` devuelto. El empleado se registra con `POST /auth/register/employee` enviando `name`, `email`, `password` e `invitationCode`.
 - Cada invitación sirve una sola vez y caduca a los 7 días. `GET /invitations` lista las de la empresa y `DELETE /invitations/{id}` revoca una.
+
+## Acciones y transiciones automáticas
+
+Las acciones se ejecutan al pasar por una transición. Las gestiona un `ADMIN` y pertenecen a su empresa.
+
+- `POST /actions` crea una acción (`name`, `type`, `config`). `GET`, `PUT` y `DELETE /actions/{id}` la consultan, editan o borran.
+- `POST /flows/{flowId}/transitions/{transitionId}/actions` asocia una acción a una transición (`actionId` y `position`, que fija el orden). `DELETE .../actions/{actionId}` la desasocia.
+- `GET /flows/{flowId}/instances/{instanceId}/executions` devuelve la traza de las acciones ejecutadas en una instancia (estado, código HTTP, duración y error).
+
+Tipos de acción:
+
+- `EMAIL`: `{"to", "subject", "body"}`.
+- `HTTP`: `{"method", "url", "headers", "body", "timeoutMs", "saveAs"}`. Solo `url` es obligatoria; el método por defecto es `GET` y el timeout 10 s (máximo 30 s). Si se indica `saveAs`, la respuesta se guarda en los datos de la instancia como `{"status": 200, "body": ...}`. Se considera fallo cualquier respuesta que no sea 2xx.
+
+En `url`, cabeceras, cuerpo y en los campos del email se pueden usar variables con los datos de la instancia: `{{cliente}}` o `{{validacion.body.id}}`.
+
+Una transición con `"automatic": true` la ejecuta el motor sin intervención al llegar a su estado origen, si se cumple su condición. Si hay varias, se ejecuta la primera que se cumpla (por orden de creación), y así sucesivamente hasta llegar a un estado `FINAL`, no tener ninguna aplicable o encadenar 20 seguidas. Las condiciones admiten rutas con punto, por ejemplo `validacion.body.ok == true`.
+
+Si una acción falla, la transición se deshace por completo (estado, historial y datos), la API responde `502` indicando la acción y el motivo, y el fallo queda en la traza. Al crear una instancia también se ejecutan sus transiciones automáticas; si una falla, la instancia se queda en el estado inicial.
 
 ## Swagger / Documentación
 

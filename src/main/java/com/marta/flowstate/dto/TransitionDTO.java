@@ -14,6 +14,9 @@ public class TransitionDTO {
     @Schema(description = "Condición lógica que debe cumplirse para ejecutar esta transición. Ejemplo: 'valor > 10 && tipo == \"VIP\"'")
     private String condition;
 
+    @Schema(description = "Si es true, el motor la ejecuta solo al llegar al estado origen y cumplirse la condición. Por defecto false")
+    private Boolean automatic;
+
     @NotNull(message = "El estado origen es obligatorio")
     @Min(value = 1, message = "El estado origen debe ser mayor que 0")
     private Long sourceStateId;

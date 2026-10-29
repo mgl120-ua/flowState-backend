@@ -23,6 +23,8 @@ public class Transition implements Serializable {
     private Long id;
     private String action;
     private String condition;
+    @Column(nullable = false)
+    private boolean automatic; //la ejecuta el motor cuando se cumple la condición
     @ManyToOne
     @JoinColumn(name = "source_state_id")
     private State source_state;
