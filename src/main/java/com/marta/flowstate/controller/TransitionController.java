@@ -48,7 +48,7 @@ public class TransitionController {
     }
 
     @PutMapping("/{transitionId}")
-    public Transition updateTransition(@PathVariable Long flowId,@PathVariable Long transitionId,@RequestBody TransitionDTO dto) {
+    public Transition updateTransition(@PathVariable Long flowId,@PathVariable Long transitionId,@Valid @RequestBody TransitionDTO dto) {
         Long companyId = sessionUserService.getCurrentCompanyId();
         return transitionService.updateTransitionFromDTO(transitionId, dto, flowId, companyId);
     }

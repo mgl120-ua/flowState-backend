@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Data
 public class TransitionDTO {
 
+    @NotBlank(message = "El nombre de la transición es obligatorio")
     private String action;
     @Schema(description = "Condición lógica que debe cumplirse para ejecutar esta transición. Ejemplo: 'valor > 10 && tipo == \"VIP\"'")
     private String condition;

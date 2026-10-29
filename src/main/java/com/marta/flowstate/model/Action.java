@@ -2,6 +2,8 @@ package com.marta.flowstate.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Data
@@ -13,7 +15,11 @@ public class Action {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
+    private String name;
+    @Column(nullable = false)
     private String type; //email,webhook,etc.
-    @Column(columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "json")
     private String config; //configuración específica
 }

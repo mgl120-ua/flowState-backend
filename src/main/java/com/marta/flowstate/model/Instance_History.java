@@ -29,5 +29,5 @@ public class Instance_History implements Serializable {
     @ManyToOne
     @JoinColumn(name = "transition_id")
     private Transition transition;
-    private Integer changed_by;
+    private Long changed_by;
 }

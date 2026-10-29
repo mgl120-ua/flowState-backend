@@ -121,7 +121,7 @@ public class TransitionExecutionService {
         history.setFrom_state(instance.getState());
         history.setTo_state(transition.getTarget_state());
         history.setTransition(transition);
-        history.setChanged_by(userId.intValue());
+        history.setChanged_by(userId);
         history.setTimestamp(LocalDateTime.now());
         historyRepository.save(history);
 
