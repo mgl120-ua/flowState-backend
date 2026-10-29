@@ -24,4 +24,6 @@ public class TransitionAction implements Serializable {
     @ManyToOne
     @JoinColumn(name = "transition_id")
     private Transition transition;
+    @Column(nullable = false)
+    private Integer position = 0; //orden de ejecución dentro de la transición
 }

@@ -30,6 +30,27 @@ public class ActionExecutorService {
         }
     }
 
+    /**
+     * Comprueba que la configuración tiene la forma que espera el tipo de acción.
+     * Se usa al crear o editar una acción, para no descubrir el error al ejecutarla.
+     */
+    public void validateConfig(String type, Map<String, Object> config) {
+        switch (type) {
+            case "EMAIL" -> {
+                requireString(config, "to");
+                requireString(config, "subject");
+                requireString(config, "body");
+            }
+            default -> throw new IllegalArgumentException("Tipo de acción no soportado: " + type);
+        }
+    }
+
+    private static void requireString(Map<String, Object> config, String key) {
+        if (!(config.get(key) instanceof String value) || value.isBlank()) {
+            throw new IllegalArgumentException("La configuración necesita el campo '" + key + "' como texto");
+        }
+    }
+
     private void handleEmail(Map<String, Object> config, Map<String, Object> instanceData) {
         String to = (String) config.get("to");
         String subject = (String) config.get("subject");

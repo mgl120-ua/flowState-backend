@@ -1,5 +1,6 @@
 package com.marta.flowstate.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -22,4 +23,8 @@ public class Action {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "json")
     private String config; //configuración específica
+    @ManyToOne
+    @JoinColumn(name = "company_id", nullable = false)
+    @JsonIgnore
+    private Company company;
 }
