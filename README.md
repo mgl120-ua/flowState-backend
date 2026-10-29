@@ -45,6 +45,9 @@ Variables de entorno requeridas:
 Variables opcionales:
 
 - `FLOWSTATE_HTTP_ALLOW_PRIVATE_HOSTS` - `true` permite que las acciones HTTP llamen a direcciones internas (`localhost`, redes privadas). Por defecto `false`; actívalo solo para pruebas locales
+- `FLOWSTATE_LLM_PROVIDER` - proveedor de las acciones LLM: `ollama` (por defecto) o `fake` (respuestas fijas, sin modelo)
+- `FLOWSTATE_LLM_OLLAMA_URL` - URL de Ollama. Por defecto `http://localhost:11434`
+- `FLOWSTATE_LLM_DEFAULT_MODEL` - modelo si la acción no indica uno. Por defecto `qwen2.5:3b`
 
 Perfiles de Spring disponibles:
 
@@ -94,6 +97,8 @@ docker compose up --build
 
 Si falta alguna variable obligatoria, `docker compose` se detiene indicando cuál.
 
+Dentro de Docker, el backend llega a Ollama en tu máquina con `http://host.docker.internal:11434` (valor por defecto en `docker-compose.yaml`).
+
 ## Registro de usuarios
 
 - `POST /auth/register/admin` crea una empresa nueva y su usuario administrador (rol `ADMIN`).
@@ -106,14 +111,59 @@ Las acciones se ejecutan al pasar por una transición. Las gestiona un `ADMIN` y
 
 - `POST /actions` crea una acción (`name`, `type`, `config`). `GET`, `PUT` y `DELETE /actions/{id}` la consultan, editan o borran.
 - `POST /flows/{flowId}/transitions/{transitionId}/actions` asocia una acción a una transición (`actionId` y `position`, que fija el orden). `DELETE .../actions/{actionId}` la desasocia.
-- `GET /flows/{flowId}/instances/{instanceId}/executions` devuelve la traza de las acciones ejecutadas en una instancia (estado, código HTTP, duración y error).
+- `GET /flows/{flowId}/instances/{instanceId}/executions` devuelve la traza de las acciones ejecutadas en una instancia (estado, código HTTP, duración y error; en las acciones LLM también modelo, tokens, coste, prompt y motivo de fin).
 
 Tipos de acción:
 
 - `EMAIL`: `{"to", "subject", "body"}`.
 - `HTTP`: `{"method", "url", "headers", "body", "timeoutMs", "saveAs"}`. Solo `url` es obligatoria; el método por defecto es `GET` y el timeout 10 s (máximo 30 s). Si se indica `saveAs`, la respuesta se guarda en los datos de la instancia como `{"status": 200, "body": ...}`. Se considera fallo cualquier respuesta que no sea 2xx.
+- `LLM`: `{"model", "system", "prompt", "outputSchema", "maxTokens", "timeoutMs", "saveAs"}`. Solo `prompt` es obligatorio; `maxTokens` es 1024 por defecto (máximo 8192) y el timeout 120 s (máximo 300 s). Con `outputSchema` (JSON Schema) el modelo debe responder un JSON que lo cumpla, y el backend lo vuelve a validar. Si se indica `saveAs`, se guarda `{"status": "ok", "body": ...}`. Es fallo una respuesta que no cumple el esquema, que se corta por `maxTokens` o que no llega.
 
-En `url`, cabeceras, cuerpo y en los campos del email se pueden usar variables con los datos de la instancia: `{{cliente}}` o `{{validacion.body.id}}`.
+En `url`, cabeceras, cuerpo, los campos del email y el `prompt` y `system` de una acción LLM se pueden usar variables con los datos de la instancia: `{{cliente}}` o `{{validacion.body.id}}`.
+
+### Acciones LLM con Ollama
+
+Las acciones LLM usan modelos abiertos que se ejecutan en tu máquina con [Ollama](https://ollama.com): no hace falta clave ni tienen coste.
+
+```powershell
+ollama pull qwen2.5:3b   # una vez, unos 2 GB
+ollama serve             # si no está ya arrancado como servicio
+```
+
+Ejemplo de clasificación de incidencias, que guarda el resultado en `data.triaje`:
+
+```json
+{
+  "name": "Clasificar incidencia",
+  "type": "LLM",
+  "config": {
+    "system": "Clasifica incidencias de soporte.",
+    "prompt": "Asunto: {{asunto}}\nDescripción: {{descripcion}}",
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "categoria": {"type": "string", "enum": ["urgente", "normal"]},
+        "confianza": {"type": "number", "minimum": 0, "maximum": 1},
+        "motivo": {"type": "string"}
+      },
+      "required": ["categoria", "confianza", "motivo"]
+    },
+    "maxTokens": 512,
+    "saveAs": "triaje"
+  }
+}
+```
+
+Una transición automática con la condición `triaje.body.categoria == 'urgente' and triaje.body.confianza >= 0.8` lleva la instancia al estado correspondiente, y otra sin condición puede dejar el resto en un estado de revisión humana.
+
+Cada llamada queda en la traza con el modelo, los tokens de entrada y salida, el coste, el prompt enviado (recortado a 8 KB, puede contener datos de la instancia) y el motivo de fin. El coste sale de la tabla `flowstate.llm.prices` de `application.properties`; los modelos locales no están en ella y cuestan 0.
+
+Para tests o demos sin Ollama, `FLOWSTATE_LLM_PROVIDER=fake` responde con lo que indique la propia acción: `"fakeResponse"` (respuesta por defecto) y `"fakeRules": [{"contains": "texto del prompt", "response": ...}]`.
+
+Consumo y límite (solo `ADMIN`, datos de su empresa):
+
+- `GET /usage/llm?from=2026-10-01&to=2026-10-31` devuelve llamadas, tokens y coste en total, por modelo y por flujo, el límite mensual y lo consumido este mes. Sin fechas, el mes en curso.
+- `PUT /companies/me/llm-limit` con `{"monthlyTokenLimit": 200000}` fija el límite mensual de tokens; `null` lo quita. Al alcanzarlo, las acciones LLM fallan sin llamar al modelo hasta el mes siguiente.
 
 Una transición con `"automatic": true` la ejecuta el motor sin intervención al llegar a su estado origen, si se cumple su condición. Si hay varias, se ejecuta la primera que se cumpla (por orden de creación), y así sucesivamente hasta llegar a un estado `FINAL`, no tener ninguna aplicable o encadenar 20 seguidas. Las condiciones admiten rutas con punto, por ejemplo `validacion.body.ok == true`.
 
