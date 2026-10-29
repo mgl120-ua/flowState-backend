@@ -20,6 +20,7 @@ public class ActionExecutorService {
     private final ObjectMapper objectMapper;
     private final TemplateRenderer templateRenderer;
     private final HttpActionHandler httpActionHandler;
+    private final LlmActionHandler llmActionHandler;
 
     public ActionResult execute(Action action, Map<String, Object> instanceData) {
         Map<String, Object> config;
@@ -34,6 +35,7 @@ public class ActionExecutorService {
         return switch (type) {
             case "EMAIL" -> handleEmail(config, instanceData);
             case "HTTP" -> httpActionHandler.execute(config, instanceData);
+            case "LLM" -> llmActionHandler.execute(config, instanceData);
             default -> throw new ActionFailedException("La acción " + type + " no está implementada");
         };
     }
@@ -50,6 +52,7 @@ public class ActionExecutorService {
                 requireString(config, "body");
             }
             case "HTTP" -> httpActionHandler.validateConfig(config);
+            case "LLM" -> llmActionHandler.validateConfig(config);
             default -> throw new IllegalArgumentException("Tipo de acción no soportado: " + type);
         }
     }

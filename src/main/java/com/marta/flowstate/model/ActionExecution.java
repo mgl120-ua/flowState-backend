@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.Type;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -51,4 +52,16 @@ public class ActionExecution {
     private Map<String, Object> responseSummary;
     @Column(name = "started_at", nullable = false)
     private LocalDateTime startedAt;
+
+    //Solo en acciones LLM
+    private String model;
+    @Column(name = "input_tokens")
+    private Integer inputTokens;
+    @Column(name = "output_tokens")
+    private Integer outputTokens;
+    @Column(name = "cost_usd", precision = 12, scale = 6)
+    private BigDecimal costUsd;
+    private String prompt;
+    @Column(name = "stop_reason")
+    private String stopReason;
 }

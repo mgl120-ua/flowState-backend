@@ -19,4 +19,12 @@ public class Company implements Serializable {
     private Long id;
     @Column(unique = true)
     private String name;
+    //Tokens LLM que puede consumir la empresa al mes; null = sin límite
+    @Column(name = "llm_monthly_token_limit")
+    private Long llmMonthlyTokenLimit;
+
+    public Company(Long id, String name) {
+        this.id = id;
+        this.name = name;
+    }
 }

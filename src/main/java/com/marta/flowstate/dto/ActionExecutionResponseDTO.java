@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -24,6 +25,12 @@ public class ActionExecutionResponseDTO {
     private String request;
     private Map<String, Object> response;
     private LocalDateTime startedAt;
+    private String model;
+    private Integer inputTokens;
+    private Integer outputTokens;
+    private BigDecimal costUsd;
+    private String prompt;
+    private String stopReason;
 
     public static ActionExecutionResponseDTO from(ActionExecution e) {
         return new ActionExecutionResponseDTO(
@@ -38,7 +45,13 @@ public class ActionExecutionResponseDTO {
                 e.getError(),
                 e.getRequestSummary(),
                 e.getResponseSummary(),
-                e.getStartedAt()
+                e.getStartedAt(),
+                e.getModel(),
+                e.getInputTokens(),
+                e.getOutputTokens(),
+                e.getCostUsd(),
+                e.getPrompt(),
+                e.getStopReason()
         );
     }
 }
