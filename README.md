@@ -64,6 +64,12 @@ jdbc:postgresql://localhost:5432/flowState
 
 Asegúrate de crear la base de datos y el usuario con los permisos necesarios antes de ejecutar la aplicación.
 
+El esquema se gestiona con Flyway: al arrancar, la aplicación aplica las migraciones de `src/main/resources/db/migration` y Hibernate solo valida que las entidades coinciden (`ddl-auto=validate`). Con el perfil `local` se cargan además los datos de ejemplo de `src/main/resources/db/demo`.
+
+Para cambiar el esquema, añade un nuevo archivo `V<n>__descripcion.sql` en `db/migration`; no modifiques las migraciones ya aplicadas.
+
+Si tienes una base de datos creada antes de usar Flyway, recréala vacía (con Docker: `docker compose down -v`) para que las migraciones se apliquen desde cero.
+
 ## Ejecución
 
 Para compilar y ejecutar el proyecto:
