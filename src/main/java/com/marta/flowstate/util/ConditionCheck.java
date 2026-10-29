@@ -22,6 +22,7 @@ public class ConditionCheck {
      * - Comparaciones de cadenas: ==, !=
      * - Operadores lógicos: AND, OR (case insensitive)
      * - Cadenas entre comillas simples o dobles
+     * - Literales true y false
      *
      * Ejemplo: age >= 18 and status == 'active'
      */
@@ -57,6 +58,9 @@ public class ConditionCheck {
     }
 
     private boolean evaluateExpression(String expression, Map<String, Object> dataMap) {
+        //Literales: "true" siempre se cumple y "false" nunca
+        if (expression.equalsIgnoreCase("true")) return true;
+        if (expression.equalsIgnoreCase("false")) return false;
         try {
             Matcher matcher = CONDITION_PATTERN.matcher(expression);
             if (!matcher.matches()) {

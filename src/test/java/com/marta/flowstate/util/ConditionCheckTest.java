@@ -42,4 +42,15 @@ class ConditionCheckTest {
         assertFalse(conditionCheck.evaluate("age >> 18", data));
         assertFalse(conditionCheck.evaluate("unknown == 'x'", data));
     }
+
+    @Test
+    void evaluateSupportsBooleanLiterals() {
+        Map<String, Object> data = Map.of("age", 20);
+
+        assertTrue(conditionCheck.evaluate("true", data));
+        assertTrue(conditionCheck.evaluate("TRUE", data));
+        assertFalse(conditionCheck.evaluate("false", data));
+        assertTrue(conditionCheck.evaluate("false or age >= 18", data));
+        assertFalse(conditionCheck.evaluate("true and age < 18", data));
+    }
 }
