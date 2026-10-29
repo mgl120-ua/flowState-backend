@@ -2,6 +2,8 @@ package com.marta.flowstate.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marta.flowstate.exception.ActionFailedException;
+import com.marta.flowstate.model.Company;
+import com.marta.flowstate.service.llm.FakeLlmClient;
 import com.marta.flowstate.service.llm.LlmClient;
 import com.marta.flowstate.service.llm.LlmProperties;
 import com.marta.flowstate.service.llm.LlmRequest;
@@ -16,6 +18,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 
 class LlmActionHandlerTest {
 
@@ -33,9 +37,10 @@ class LlmActionHandlerTest {
         lastRequest.set(request);
         return nextResponse.get();
     };
+    private final LlmUsageService usageService = mock(LlmUsageService.class);
     private final LlmProperties properties = new LlmProperties("fake", "modelo-local", null,
             Map.of("modelo-pago", new LlmProperties.Price(new BigDecimal("2"), new BigDecimal("10"))));
-    private final LlmActionHandler handler = new LlmActionHandler(client, properties, new TemplateRenderer(objectMapper), objectMapper);
+    private final LlmActionHandler handler = new LlmActionHandler(client, properties, usageService, new TemplateRenderer(objectMapper), objectMapper);
 
     private static Map<String, Object> config() {
         Map<String, Object> config = new HashMap<>();
@@ -50,7 +55,7 @@ class LlmActionHandlerTest {
     void rendersPromptValidatesJsonAndReturnsUsage() {
         nextResponse.set(new LlmResponse("modelo-local", "{\"categoria\":\"urgente\",\"confianza\":0.92}", 30, 12, "stop"));
 
-        ActionResult result = handler.execute(config(), Map.of("asunto", "Web caída", "empresa", "ACME"));
+        ActionResult result = handler.execute(config(), Map.of("asunto", "Web caída", "empresa", "ACME"), null);
 
         assertEquals("modelo-local", lastRequest.get().model());
         assertEquals("Asunto: Web caída", lastRequest.get().prompt());
@@ -72,7 +77,7 @@ class LlmActionHandlerTest {
         config.remove("outputSchema");
         nextResponse.set(new LlmResponse("modelo-local", "Resumen libre", 5, 3, "stop"));
 
-        ActionResult result = handler.execute(config, Map.of());
+        ActionResult result = handler.execute(config, Map.of(), null);
 
         assertEquals("Resumen libre", result.output().get("body"));
     }
@@ -81,7 +86,7 @@ class LlmActionHandlerTest {
     void outputThatBreaksSchemaFailsKeepingTokens() {
         nextResponse.set(new LlmResponse("modelo-local", "{\"categoria\":\"otra\"}", 30, 6, "stop"));
 
-        ActionFailedException ex = assertThrows(ActionFailedException.class, () -> handler.execute(config(), Map.of()));
+        ActionFailedException ex = assertThrows(ActionFailedException.class, () -> handler.execute(config(), Map.of(), null));
 
         assertTrue(ex.getMessage().startsWith("La respuesta del modelo no cumple el esquema"), ex.getMessage());
         assertEquals(30, ex.getLlmUsage().inputTokens());
@@ -92,10 +97,10 @@ class LlmActionHandlerTest {
     void invalidJsonAndCutResponsesFail() {
         nextResponse.set(new LlmResponse("modelo-local", "no es json", 30, 3, "stop"));
         assertEquals("La respuesta del modelo no es un JSON válido",
-                assertThrows(ActionFailedException.class, () -> handler.execute(config(), Map.of())).getMessage());
+                assertThrows(ActionFailedException.class, () -> handler.execute(config(), Map.of(), null)).getMessage());
 
         nextResponse.set(new LlmResponse("modelo-local", "{\"categoria\":", 30, 1024, "length"));
-        ActionFailedException cut = assertThrows(ActionFailedException.class, () -> handler.execute(config(), Map.of()));
+        ActionFailedException cut = assertThrows(ActionFailedException.class, () -> handler.execute(config(), Map.of(), null));
         assertTrue(cut.getMessage().contains("maxTokens"));
         assertEquals("length", cut.getLlmUsage().stopReason());
     }
@@ -104,10 +109,10 @@ class LlmActionHandlerTest {
     void providerFailureKeepsPromptInUsage() {
         LlmActionHandler failing = new LlmActionHandler(request -> {
             throw new ActionFailedException("No se puede conectar con Ollama");
-        }, properties, new TemplateRenderer(objectMapper), objectMapper);
+        }, properties, usageService, new TemplateRenderer(objectMapper), objectMapper);
 
         ActionFailedException ex = assertThrows(ActionFailedException.class,
-                () -> failing.execute(config(), Map.of("asunto", "x")));
+                () -> failing.execute(config(), Map.of("asunto", "x"), null));
 
         assertEquals("No se puede conectar con Ollama", ex.getMessage());
         assertEquals("LLM modelo-local", ex.getRequestSummary());
@@ -122,10 +127,28 @@ class LlmActionHandlerTest {
         config.remove("outputSchema");
         nextResponse.set(new LlmResponse("modelo-pago", "ok", 1_000_000, 500_000, "stop"));
 
-        ActionResult result = handler.execute(config, Map.of("asunto", "x".repeat(10_000)));
+        ActionResult result = handler.execute(config, Map.of("asunto", "x".repeat(10_000)), null);
 
         assertEquals(new BigDecimal("7.000000"), result.llmUsage().costUsd());
         assertEquals(LlmActionHandler.MAX_TRACE_PROMPT_CHARS, result.llmUsage().prompt().length());
+    }
+
+    @Test
+    void reachedLimitFailsWithoutCallingTheModel() {
+        Company company = new Company(1L, "Acme");
+        doThrow(new ActionFailedException("Límite mensual de tokens LLM alcanzado (100 de 100)"))
+                .when(usageService).checkMonthlyLimit(company);
+        FakeLlmClient fake = new FakeLlmClient(objectMapper);
+        LlmActionHandler limited = new LlmActionHandler(fake, properties, usageService, new TemplateRenderer(objectMapper), objectMapper);
+        Map<String, Object> config = config();
+        config.put("fakeResponse", Map.of("categoria", "normal", "confianza", 1));
+
+        ActionFailedException ex = assertThrows(ActionFailedException.class,
+                () -> limited.execute(config, Map.of("asunto", "x"), company));
+
+        assertTrue(ex.getMessage().startsWith("Límite mensual de tokens LLM alcanzado"));
+        assertEquals(0, fake.calls());
+        assertEquals("Asunto: x", ex.getLlmUsage().prompt());
     }
 
     @Test

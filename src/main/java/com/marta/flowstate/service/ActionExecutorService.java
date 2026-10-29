@@ -35,7 +35,7 @@ public class ActionExecutorService {
         return switch (type) {
             case "EMAIL" -> handleEmail(config, instanceData);
             case "HTTP" -> httpActionHandler.execute(config, instanceData);
-            case "LLM" -> llmActionHandler.execute(config, instanceData);
+            case "LLM" -> llmActionHandler.execute(config, instanceData, action.getCompany());
             default -> throw new ActionFailedException("La acción " + type + " no está implementada");
         };
     }

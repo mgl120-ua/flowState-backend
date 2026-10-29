@@ -2,6 +2,7 @@ package com.marta.flowstate.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marta.flowstate.exception.ActionFailedException;
+import com.marta.flowstate.model.Company;
 import com.marta.flowstate.service.llm.LlmClient;
 import com.marta.flowstate.service.llm.LlmProperties;
 import com.marta.flowstate.service.llm.LlmRequest;
@@ -25,6 +26,7 @@ import java.util.Map;
  * Configuración: {"model", "system", "prompt", "outputSchema", "maxTokens", "timeoutMs", "saveAs"}.
  * Con outputSchema la respuesta debe ser un JSON que lo cumpla. Si hay saveAs, se guarda
  * {"status": "ok", "body": respuesta} en los datos de la instancia, igual que la acción HTTP.
+ * Antes de llamar al modelo se comprueba el límite mensual de tokens de la empresa de la acción.
  */
 @Component
 public class LlmActionHandler {
@@ -39,12 +41,15 @@ public class LlmActionHandler {
 
     private final LlmClient llmClient;
     private final LlmProperties properties;
+    private final LlmUsageService llmUsageService;
     private final TemplateRenderer templateRenderer;
     private final ObjectMapper objectMapper;
 
-    public LlmActionHandler(LlmClient llmClient, LlmProperties properties, TemplateRenderer templateRenderer, ObjectMapper objectMapper) {
+    public LlmActionHandler(LlmClient llmClient, LlmProperties properties, LlmUsageService llmUsageService,
+                            TemplateRenderer templateRenderer, ObjectMapper objectMapper) {
         this.llmClient = llmClient;
         this.properties = properties;
+        this.llmUsageService = llmUsageService;
         this.templateRenderer = templateRenderer;
         this.objectMapper = objectMapper;
     }
@@ -67,7 +72,7 @@ public class LlmActionHandler {
     }
 
     @SuppressWarnings("unchecked")
-    public ActionResult execute(Map<String, Object> config, Map<String, Object> data) {
+    public ActionResult execute(Map<String, Object> config, Map<String, Object> data, Company company) {
         String model = config.get("model") instanceof String m && !m.isBlank() ? m : properties.defaultModel();
         String system = config.get("system") instanceof String s ? templateRenderer.render(s, data) : null;
         String prompt = templateRenderer.render((String) config.get("prompt"), data);
@@ -79,6 +84,7 @@ public class LlmActionHandler {
                 Duration.ofMillis(timeoutMs(config)), config);
         LlmResponse response;
         try {
+            llmUsageService.checkMonthlyLimit(company);
             response = llmClient.complete(request);
         } catch (ActionFailedException e) {
             throw new ActionFailedException(e.getMessage(), summary, usage(model, prompt, null));

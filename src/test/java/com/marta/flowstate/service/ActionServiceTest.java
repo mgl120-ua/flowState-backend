@@ -55,7 +55,7 @@ class ActionServiceTest {
         TemplateRenderer renderer = new TemplateRenderer(objectMapper);
         HttpActionHandler http = new HttpActionHandler(new HttpTargetValidator(false), renderer, objectMapper);
         LlmActionHandler llm = new LlmActionHandler(new FakeLlmClient(objectMapper),
-                new LlmProperties("fake", null, null, null), renderer, objectMapper);
+                new LlmProperties("fake", null, null, null), null, renderer, objectMapper);
         ActionExecutorService executor = new ActionExecutorService(null, objectMapper, renderer, http, llm);
         actionService = new ActionService(actionRepository, transitionRepository, transitionActionRepository,
                 executor, sessionUserService, objectMapper);
