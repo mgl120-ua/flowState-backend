@@ -5,9 +5,9 @@ services:
     container_name: flowState_db
     restart: always
     environment:
-      POSTGRES_USER: marta
-      POSTGRES_PASSWORD: holamundo
-      POSTGRES_DB: flowState
+      POSTGRES_USER: ${POSTGRES_USER:?falta POSTGRES_USER en .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: ${POSTGRES_DB:-flowState}
     ports:
       - "5432:5432"
     volumes:
@@ -21,9 +21,11 @@ services:
     ports:
       - "8085:8085"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/flowState
-      SPRING_DATASOURCE_USERNAME: marta
-      SPRING_DATASOURCE_PASSWORD: holamundo
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-flowState}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?falta POSTGRES_USER en .env}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en .env}
+      JWT_SECRET: ${JWT_SECRET:?falta JWT_SECRET en .env}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
     depends_on:
       - db
 

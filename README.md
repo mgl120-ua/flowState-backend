@@ -73,6 +73,17 @@ Para compilar y ejecutar el proyecto:
 ./mvnw.cmd spring-boot:run
 ```
 
+## Ejecución con Docker
+
+Las credenciales se leen de un archivo `.env` que no se sube al repositorio:
+
+```powershell
+Copy-Item .env.example .env   # y rellena los valores
+docker compose up --build
+```
+
+Si falta alguna variable obligatoria, `docker compose` se detiene indicando cuál.
+
 ## Swagger / Documentación
 
 Después de arrancar la aplicación, la documentación Swagger está disponible en:
