@@ -90,6 +90,12 @@ docker compose up --build
 
 Si falta alguna variable obligatoria, `docker compose` se detiene indicando cuál.
 
+## Registro de usuarios
+
+- `POST /auth/register/admin` crea una empresa nueva y su usuario administrador (rol `ADMIN`).
+- Los empleados solo pueden registrarse con una invitación. Un `ADMIN` la crea con `POST /invitations` (`roleId` de un rol de su empresa y, opcionalmente, el `email` del invitado) y comparte el `code` devuelto. El empleado se registra con `POST /auth/register/employee` enviando `name`, `email`, `password` e `invitationCode`.
+- Cada invitación sirve una sola vez y caduca a los 7 días. `GET /invitations` lista las de la empresa y `DELETE /invitations/{id}` revoca una.
+
 ## Swagger / Documentación
 
 Después de arrancar la aplicación, la documentación Swagger está disponible en:
