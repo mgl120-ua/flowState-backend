@@ -2,6 +2,7 @@ package com.marta.flowstate.controller;
 
 import com.marta.flowstate.model.Instance;
 import com.marta.flowstate.model.Instance_History;
+import com.marta.flowstate.dto.ActionExecutionResponseDTO;
 import com.marta.flowstate.dto.InstanceDTO;
 import com.marta.flowstate.service.InstanceService;
 import com.marta.flowstate.service.TransitionExecutionService;
@@ -87,10 +88,16 @@ public class InstanceController {
     }
 
     @PostMapping("/{instanceId}/transitions/{transitionId}/execute")
-    public ResponseEntity<Void> executeTransition(@PathVariable Long flowId,@PathVariable Long instanceId,@PathVariable Long transitionId) {
+    public ResponseEntity<Instance> executeTransition(@PathVariable Long flowId,@PathVariable Long instanceId,@PathVariable Long transitionId) {
         Long userId = sessionUserService.getCurrentUser().getId();
-        transitionExecutionService.executeTransition(instanceId, transitionId, userId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(transitionExecutionService.executeTransition(instanceId, transitionId, userId));
+    }
+
+    @GetMapping("/{instanceId}/executions")
+    public List<ActionExecutionResponseDTO> getInstanceExecutions(@PathVariable Long instanceId) {
+        Long companyId = sessionUserService.getCurrentCompanyId();
+        return instanceService.getInstanceExecutions(instanceId, companyId).stream()
+                .map(ActionExecutionResponseDTO::from).toList();
     }
 
 

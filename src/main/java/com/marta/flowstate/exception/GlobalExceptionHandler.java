@@ -30,6 +30,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
     }
 
+    //Una acción de la transición ha fallado (API externa caída, timeout...): la transición se ha deshecho
+    @ExceptionHandler(ActionExecutionException.class)
+    public ProblemDetail handleActionFailed(ActionExecutionException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY,
+                "Ha fallado la acción '" + ex.getActionName() + "': " + ex.getMessage());
+        problem.setProperty("action", ex.getActionName());
+        problem.setProperty("reason", ex.getMessage());
+        return problem;
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleBadRequest(IllegalArgumentException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());

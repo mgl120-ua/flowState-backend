@@ -23,6 +23,7 @@ public class ConditionCheck {
      * - Operadores lógicos: AND, OR (case insensitive)
      * - Cadenas entre comillas simples o dobles
      * - Literales true y false
+     * - Rutas con punto para datos anidados: validacion.body.ok == true
      *
      * Ejemplo: age >= 18 and status == 'active'
      */
@@ -72,7 +73,7 @@ public class ConditionCheck {
             String operator = matcher.group(2);
             String rawValue = matcher.group(3).trim();
             String expectedValue = unquote(rawValue);
-            Object actualValue = dataMap.get(key);
+            Object actualValue = DataPath.resolve(dataMap, key);
 
             if (actualValue == null) {
                 logger.debug("Clave no encontrada en datos: {}", key);

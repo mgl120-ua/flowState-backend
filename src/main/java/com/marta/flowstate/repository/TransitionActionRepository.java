@@ -9,7 +9,6 @@ import java.util.Optional;
 
 @Repository
 public interface TransitionActionRepository extends JpaRepository<TransitionAction, Long> {
-    List<TransitionAction> findByTransitionId(Long transitionId);
     List<TransitionAction> findByTransitionIdOrderByPositionAscIdAsc(Long transitionId);
     Optional<TransitionAction> findByTransitionIdAndActionId(Long transitionId, Long actionId);
     boolean existsByTransitionIdAndActionId(Long transitionId, Long actionId);

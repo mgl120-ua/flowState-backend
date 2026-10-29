@@ -1,5 +1,6 @@
 package com.marta.flowstate.service;
 
+import com.marta.flowstate.model.ActionExecution;
 import com.marta.flowstate.model.Instance;
 import com.marta.flowstate.model.Instance_History;
 import com.marta.flowstate.model.State;
@@ -37,6 +38,7 @@ public class InstanceService {
     private final WorkflowRepository workflowRepository;
     private final AppUserRepository appUserRepository;
     private final SessionUserService sessionUserService;
+    private final ExecutionTraceService executionTraceService;
 
     public InstanceService(
             InstanceRepository instanceRepository,
@@ -44,7 +46,8 @@ public class InstanceService {
             StateRepository stateRepository,
             WorkflowRepository workflowRepository,
             AppUserRepository appUserRepository,
-            SessionUserService sessionUserService
+            SessionUserService sessionUserService,
+            ExecutionTraceService executionTraceService
     ) {
         this.instanceRepository = instanceRepository;
         this.instanceHistoryRepository = instanceHistoryRepository;
@@ -52,6 +55,7 @@ public class InstanceService {
         this.workflowRepository = workflowRepository;
         this.appUserRepository = appUserRepository;
         this.sessionUserService = sessionUserService;
+        this.executionTraceService = executionTraceService;
     }
 
 
@@ -107,6 +111,14 @@ public class InstanceService {
             throw new NotFoundException("Instancia: " + instanceId + " no encontrada");
         }
         return instanceHistoryRepository.findByInstanceId(instanceId);
+    }
+
+    public List<ActionExecution> getInstanceExecutions(Long instanceId, Long companyId) {
+        Instance instance = getInstanceById(instanceId);
+        if (!instance.getWorkflow().getCompany().getId().equals(companyId)) {
+            throw new NotFoundException("Instancia: " + instanceId + " no encontrada");
+        }
+        return executionTraceService.findByInstance(instanceId);
     }
 
     public Instance updateInstance(Long id, InstanceDTO dto, Long flowId, Long companyId) {

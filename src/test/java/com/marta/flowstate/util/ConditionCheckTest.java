@@ -53,4 +53,17 @@ class ConditionCheckTest {
         assertTrue(conditionCheck.evaluate("false or age >= 18", data));
         assertFalse(conditionCheck.evaluate("true and age < 18", data));
     }
+
+    @Test
+    void evaluateReadsNestedValuesWithDottedPaths() {
+        Map<String, Object> data = Map.of(
+                "validacion", Map.of("status", 200, "body", Map.of("ok", true, "score", 87)),
+                "legacy.key", "x"
+        );
+
+        assertTrue(conditionCheck.evaluate("validacion.body.ok == true", data));
+        assertTrue(conditionCheck.evaluate("validacion.status >= 200 and validacion.body.score > 80", data));
+        assertFalse(conditionCheck.evaluate("validacion.body.missing == true", data));
+        assertTrue(conditionCheck.evaluate("legacy.key == 'x'", data));
+    }
 }

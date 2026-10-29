@@ -15,6 +15,7 @@ import com.marta.flowstate.repository.ActionRepository;
 import com.marta.flowstate.repository.TransitionActionRepository;
 import com.marta.flowstate.repository.TransitionRepository;
 import com.marta.flowstate.security.SessionUserService;
+import com.marta.flowstate.util.TemplateRenderer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,7 +50,9 @@ class ActionServiceTest {
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
-        ActionExecutorService executor = new ActionExecutorService(null, objectMapper);
+        TemplateRenderer renderer = new TemplateRenderer(objectMapper);
+        HttpActionHandler http = new HttpActionHandler(new HttpTargetValidator(false), renderer, objectMapper);
+        ActionExecutorService executor = new ActionExecutorService(null, objectMapper, renderer, http);
         actionService = new ActionService(actionRepository, transitionRepository, transitionActionRepository,
                 executor, sessionUserService, objectMapper);
         company = new Company(1L, "Acme");
@@ -113,6 +116,18 @@ class ActionServiceTest {
         when(sessionUserService.getCurrentUser()).thenReturn(new AppUser());
 
         assertThrows(IllegalArgumentException.class, () -> actionService.createAction(dto));
+    }
+
+    @Test
+    void createHttpActionToInternalAddressIsRejected() {
+        ActionDTO dto = new ActionDTO();
+        dto.setName("Metadatos");
+        dto.setType("HTTP");
+        dto.setConfig(Map.of("url", "http://169.254.169.254/latest/meta-data"));
+        when(sessionUserService.getCurrentUser()).thenReturn(new AppUser());
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> actionService.createAction(dto));
+        assertTrue(ex.getMessage().contains("internas"));
     }
 
     @Test

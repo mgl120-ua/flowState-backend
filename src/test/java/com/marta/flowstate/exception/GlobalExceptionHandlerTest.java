@@ -24,6 +24,9 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/not-found")
         void notFound() { throw new NotFoundException("Flujo no encontrado"); }
 
+        @GetMapping("/action-failed")
+        void actionFailed() { throw new ActionExecutionException("Validar cliente", "La API respondió 503", java.util.List.of(), null); }
+
         @GetMapping("/bad-request")
         void badRequest() { throw new IllegalArgumentException("Dato no valido"); }
 
@@ -94,5 +97,13 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/unexpected"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.detail").value("Error interno del servidor"));
+    }
+
+    @Test
+    void failedActionReturns502WithActionAndReason() throws Exception {
+        mockMvc.perform(get("/action-failed"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.action").value("Validar cliente"))
+                .andExpect(jsonPath("$.reason").value("La API respondió 503"));
     }
 }
