@@ -15,7 +15,7 @@ Este proyecto es un backend Spring Boot que implementa:
 
 ## Tecnologías
 
-- Java 17
+- Java 21
 - Spring Boot 3.4.4
 - Spring Web
 - Spring Data JPA
@@ -28,7 +28,7 @@ Este proyecto es un backend Spring Boot que implementa:
 
 ## Requisitos
 
-- Java 17
+- Java 21
 - Maven (se usa el wrapper incluido `./mvnw.cmd`)
 - PostgreSQL
 
