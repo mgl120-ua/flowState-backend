@@ -1,8 +1,8 @@
 package com.marta.flowstate.controller;
 
-import com.marta.flowstate.dto.CompanyDTO;
 import com.marta.flowstate.model.Company;
 import com.marta.flowstate.service.CompanyService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,11 +29,8 @@ public class CompanyController {
         return companyService.getCompanyById(id);
     }
 
-    @PostMapping
-    public Company createCompany(@RequestBody CompanyDTO companyDTO) {
-        return companyService.createCompany(companyDTO);
-    }
-
+    //Las empresas se crean al registrar un administrador (/auth/register/admin)
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public void deleteCompany(@PathVariable Long id) {
         companyService.deleteCompany(id);

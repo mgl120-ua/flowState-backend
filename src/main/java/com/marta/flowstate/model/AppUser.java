@@ -1,5 +1,6 @@
 package com.marta.flowstate.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.*;
@@ -19,6 +20,7 @@ public class AppUser implements Serializable {
     private String name;
     @Column(unique = true)
     private String email;
+    @JsonIgnore
     @Column(nullable = true)
     private String password;
     @ManyToOne

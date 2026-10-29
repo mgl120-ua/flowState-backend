@@ -7,7 +7,10 @@ import com.marta.flowstate.model.Rol;
 import com.marta.flowstate.repository.AppUserRepository;
 import com.marta.flowstate.repository.CompanyRepository;
 import com.marta.flowstate.repository.RolRepository;
+import com.marta.flowstate.security.SessionUserService;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -18,22 +21,32 @@ public class AppUserService {
     private final AppUserRepository appUserRepository;
     private final CompanyRepository companyRepository;
     private final RolRepository rolRepository;
+    private final SessionUserService sessionUserService;
 
-    public AppUserService(AppUserRepository appUserRepository, CompanyRepository companyRepository, RolRepository rolRepository) {
+    public AppUserService(AppUserRepository appUserRepository, CompanyRepository companyRepository, RolRepository rolRepository, SessionUserService sessionUserService) {
         this.appUserRepository = appUserRepository;
         this.companyRepository = companyRepository;
         this.rolRepository = rolRepository;
+        this.sessionUserService = sessionUserService;
     }
 
+    //Solo usuarios de la empresa del usuario autenticado
     public List<AppUser> getAllUsers() {
-        return appUserRepository.findAll();
+        Long companyId = sessionUserService.getCurrentCompanyId();
+        return appUserRepository.findByCompanyId(companyId);
     }
 
     public AppUser getUserById(Long id) {
-        return appUserRepository.findById(id).orElseThrow(() -> new RuntimeException("Usuario" + id + "no encontrado"));
+        Long companyId = sessionUserService.getCurrentCompanyId();
+        return appUserRepository.findById(id)
+                .filter(user -> user.getCompany() != null && user.getCompany().getId().equals(companyId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario " + id + " no encontrado"));
     }
 
     public List<AppUser> getUsersByCompanyId(Long companyId) {
+        if (!companyId.equals(sessionUserService.getCurrentCompanyId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes acceso a esta empresa");
+        }
         return appUserRepository.findByCompanyId(companyId);
     }
 
@@ -52,22 +65,22 @@ public class AppUserService {
     }
 
     public void deleteUser(Long id) {
-        if (!appUserRepository.existsById(id)) {
-            throw new RuntimeException("Usuario : " + id + "no encontrado");
-        }
-        appUserRepository.deleteById(id);
+        AppUser user = getUserById(id); //ya valida que es de la empresa
+        appUserRepository.delete(user);
     }
 
     public AppUser updateUser(Long id, AppUserDTO dto) {
-        AppUser user = appUserRepository.findById(id).orElseThrow(() -> new RuntimeException("Usuario : " + id + "no encontrado"));
+        AppUser user = getUserById(id); //ya valida que es de la empresa
+        Long companyId = user.getCompany().getId();
+        //No se permite mover un usuario a otra empresa
+        if (dto.getCompanyId() != null && !dto.getCompanyId().equals(companyId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No se puede cambiar la empresa de un usuario");
+        }
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
-        if (dto.getCompanyId() != null) {
-            Company company = companyRepository.findById(dto.getCompanyId()).orElseThrow(() -> new RuntimeException("Empresa : " + dto.getCompanyId() + "no encontrada"));
-            user.setCompany(company);
-        }
         if (dto.getRoleId() != null) {
-            Rol rol = rolRepository.findById(dto.getRoleId()).orElseThrow(() -> new RuntimeException("Role : " + dto.getRoleId() + "no encontrado"));
+            Rol rol = rolRepository.findByCompanyIdAndId(companyId, dto.getRoleId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rol " + dto.getRoleId() + " no encontrado o no pertenece a la empresa"));
             user.setRol(rol);
         }
         return appUserRepository.save(user);
