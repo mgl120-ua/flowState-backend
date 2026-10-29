@@ -3,9 +3,11 @@ package com.marta.flowstate.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 
+import com.marta.flowstate.model.AppUser;
 import com.marta.flowstate.model.Instance;
 import com.marta.flowstate.model.Instance_History;
 import com.marta.flowstate.model.Transition;
+import com.marta.flowstate.repository.AppUserRepository;
 import com.marta.flowstate.repository.InstanceRepository;
 import com.marta.flowstate.repository.TransitionRepository;
 import com.marta.flowstate.repository.Transition_PermissionRepository;
@@ -15,8 +17,10 @@ import com.marta.flowstate.repository.TransitionActionRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -39,6 +43,7 @@ public class TransitionExecutionService {
     private final ObjectMapper objectMapper;
     private final ActionExecutorService actionExecutorService;
     private final TransitionActionRepository transitionActionRepository;
+    private final AppUserRepository appUserRepository;
 
 
     public TransitionExecutionService(
@@ -50,7 +55,8 @@ public class TransitionExecutionService {
             MailService mailService,
             ObjectMapper objectMapper,
             TransitionActionRepository transitionActionRepository,
-            ActionExecutorService actionExecutorService
+            ActionExecutorService actionExecutorService,
+            AppUserRepository appUserRepository
     ) {
         this.instanceRepository = instanceRepository;
         this.transitionRepository = transitionRepository;
@@ -61,6 +67,7 @@ public class TransitionExecutionService {
         this.objectMapper = objectMapper;
         this.transitionActionRepository = transitionActionRepository;
         this.actionExecutorService = actionExecutorService;
+        this.appUserRepository = appUserRepository;
 
     }
 
@@ -70,17 +77,25 @@ public class TransitionExecutionService {
 
         Transition transition = transitionRepository.findById(transitionId).orElseThrow(() -> new IllegalArgumentException("Transicion no encontrada"));
 
+        AppUser executor = appUserRepository.findById(userId).orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuario no encontrado"));
+
+        // La instancia debe ser de la empresa de quien ejecuta
+        if (executor.getCompany() == null || instance.getWorkflow().getCompany() == null
+                || !executor.getCompany().getId().equals(instance.getWorkflow().getCompany().getId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Instancia no encontrada");
+        }
+
         // Validar estado actual
         if (!instance.getState().getId().equals(transition.getSource_state().getId())) {
             throw new IllegalArgumentException("Transición no permitida desde el estado actual");
         }
 
-        //Validar permisos
-        boolean hasPermission = permissionRepository.existsByTransition_IdAndRol_Id(
-                transitionId, instance.getUser().getRol().getId());
+        //Validar permisos con el rol de quien ejecuta (no del creador de la instancia)
+        boolean hasPermission = executor.getRol() != null && permissionRepository.existsByTransition_IdAndRol_Id(
+                transitionId, executor.getRol().getId());
 
         if (!hasPermission) {
-            throw new IllegalArgumentException("Usuario no tiene permisos de ejecucion");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuario no tiene permisos de ejecucion");
         }
 
         //Evaluar condición
