@@ -160,6 +160,8 @@ Cada llamada queda en la traza con el modelo, los tokens de entrada y salida, el
 
 Para tests o demos sin Ollama, `FLOWSTATE_LLM_PROVIDER=fake` responde con lo que indique la propia acción: `"fakeResponse"` (respuesta por defecto) y `"fakeRules": [{"contains": "texto del prompt", "response": ...}]`.
 
+Rendimiento medido en un portátil sin GPU dedicada (i7-1255U, 32 GB de RAM, solo CPU) con `qwen2.5:3b`: la primera llamada tarda unos 24 s porque Ollama carga el modelo, y las siguientes unos 7-8 s con unos 100 tokens de entrada y 30 de salida. El modelo ocupa unos 2,2 GB de RAM. En equipos así conviene no pasar de modelos de 4B y limitar Ollama a un modelo cargado con `OLLAMA_MAX_LOADED_MODELS=1` y `OLLAMA_NUM_PARALLEL=1`. Un modelo tan pequeño puede equivocarse incluso con confianza alta, así que conviene revisar sus decisiones críticas.
+
 Consumo y límite (solo `ADMIN`, datos de su empresa):
 
 - `GET /usage/llm?from=2026-10-01&to=2026-10-31` devuelve llamadas, tokens y coste en total, por modelo y por flujo, el límite mensual y lo consumido este mes. Sin fechas, el mes en curso.
