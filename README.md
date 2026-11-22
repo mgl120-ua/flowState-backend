@@ -47,7 +47,7 @@ Variables opcionales:
 - `FLOWSTATE_HTTP_ALLOW_PRIVATE_HOSTS` - `true` permite que las acciones HTTP llamen a direcciones internas (`localhost`, redes privadas). Por defecto `false`; actívalo solo para pruebas locales
 - `FLOWSTATE_LLM_PROVIDER` - proveedor de las acciones LLM: `ollama` (por defecto) o `fake` (respuestas fijas, sin modelo)
 - `FLOWSTATE_LLM_OLLAMA_URL` - URL de Ollama. Por defecto `http://localhost:11434`
-- `FLOWSTATE_LLM_DEFAULT_MODEL` - modelo si la acción no indica uno. Por defecto `qwen2.5:3b`
+- `FLOWSTATE_LLM_DEFAULT_MODEL` - modelo si la acción no indica uno. Por defecto `qwen3.5:4b`
 
 Perfiles de Spring disponibles:
 
@@ -126,7 +126,7 @@ En `url`, cabeceras, cuerpo, los campos del email y el `prompt` y `system` de un
 Las acciones LLM usan modelos abiertos que se ejecutan en tu máquina con [Ollama](https://ollama.com): no hace falta clave ni tienen coste.
 
 ```powershell
-ollama pull qwen2.5:3b   # una vez, unos 2 GB
+ollama pull qwen3.5:4b   # una vez, unos 3,3 GB
 ollama serve             # si no está ya arrancado como servicio
 ```
 
@@ -160,7 +160,7 @@ Cada llamada queda en la traza con el modelo, los tokens de entrada y salida, el
 
 Para tests o demos sin Ollama, `FLOWSTATE_LLM_PROVIDER=fake` responde con lo que indique la propia acción: `"fakeResponse"` (respuesta por defecto) y `"fakeRules": [{"contains": "texto del prompt", "response": ...}]`.
 
-Rendimiento medido en un portátil sin GPU dedicada (i7-1255U, 32 GB de RAM, solo CPU) con `qwen2.5:3b`: la primera llamada tarda unos 24 s porque Ollama carga el modelo, y las siguientes unos 7-8 s con unos 100 tokens de entrada y 30 de salida. El modelo ocupa unos 2,2 GB de RAM. En equipos así conviene no pasar de modelos de 4B y limitar Ollama a un modelo cargado con `OLLAMA_MAX_LOADED_MODELS=1` y `OLLAMA_NUM_PARALLEL=1`. Un modelo tan pequeño puede equivocarse incluso con confianza alta, así que conviene revisar sus decisiones críticas.
+Rendimiento medido en un portátil sin GPU dedicada (i7-1255U, 32 GB de RAM, solo CPU) con `qwen2.5:3b`: la primera llamada tarda unos 24 s porque Ollama carga el modelo, y las siguientes unos 7-8 s con unos 100 tokens de entrada y 30 de salida. El modelo ocupa unos 2,2 GB de RAM. Con `qwen3.5:4b`, el modelo por defecto, cada llamada tarda unos 8 s, ocupa unos 3,7 GB de RAM y clasifica bien el caso urgente que el 3B fallaba. En equipos así conviene no pasar de modelos de 4B y limitar Ollama a un modelo cargado con `OLLAMA_MAX_LOADED_MODELS=1` y `OLLAMA_NUM_PARALLEL=1`. Un modelo tan pequeño puede equivocarse incluso con confianza alta, así que conviene revisar sus decisiones críticas.
 
 Consumo y límite (solo `ADMIN`, datos de su empresa):
 

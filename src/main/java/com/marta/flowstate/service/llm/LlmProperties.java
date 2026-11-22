@@ -18,7 +18,7 @@ public record LlmProperties(String provider, String defaultModel, String ollamaU
 
     public LlmProperties {
         if (provider == null || provider.isBlank()) provider = "ollama";
-        if (defaultModel == null || defaultModel.isBlank()) defaultModel = "qwen2.5:3b";
+        if (defaultModel == null || defaultModel.isBlank()) defaultModel = "qwen3.5:4b";
         if (ollamaUrl == null || ollamaUrl.isBlank()) ollamaUrl = "http://localhost:11434";
         prices = prices == null ? Map.of() : Map.copyOf(prices);
     }
