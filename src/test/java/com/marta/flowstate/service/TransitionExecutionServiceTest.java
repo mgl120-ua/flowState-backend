@@ -22,6 +22,7 @@ import com.marta.flowstate.repository.Instance_HistoryRepository;
 import com.marta.flowstate.repository.TransitionActionRepository;
 import com.marta.flowstate.repository.TransitionRepository;
 import com.marta.flowstate.repository.Transition_PermissionRepository;
+import com.marta.flowstate.service.llm.LlmUsage;
 import com.marta.flowstate.util.ConditionCheck;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,7 @@ import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -343,6 +345,41 @@ class TransitionExecutionServiceTest {
         assertEquals("La API respondió 503", trace.getError());
         verify(actionExecutionRepository, never()).saveAll(any());
         verify(mailService, never()).sendEmail(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void failedLlmActionKeepsTokensInTrace() {
+        Rol rol = new Rol();
+        rol.setId(30L);
+        Instance instance = instanceWithCreatorRol(1L, rol);
+        Transition transition = transitionFrom(2L, instance.getState());
+        Action action = new Action();
+        action.setId(56L);
+        action.setName("Clasificar");
+        action.setType("LLM");
+        TransitionAction ta = new TransitionAction();
+        ta.setAction(action);
+        LlmUsage usage = new LlmUsage("qwen2.5:3b", 40, 7, BigDecimal.ZERO, "Asunto: x", "stop");
+
+        when(instanceRepository.findById(1L)).thenReturn(Optional.of(instance));
+        when(transitionRepository.findById(2L)).thenReturn(Optional.of(transition));
+        when(appUserRepository.findById(42L)).thenReturn(Optional.of(executor(42L, 1L, rol)));
+        when(permissionRepository.existsByTransition_IdAndRol_Id(2L, 30L)).thenReturn(true);
+        when(transitionActionRepository.findByTransitionIdOrderByPositionAscIdAsc(2L)).thenReturn(List.of(ta));
+        when(actionExecutorService.execute(eq(action), any()))
+                .thenThrow(new ActionFailedException("La respuesta del modelo no cumple el esquema", "LLM qwen2.5:3b", usage));
+
+        assertThrows(ActionExecutionException.class, () -> transitionExecutionService.executeTransition(1L, 2L, 42L));
+
+        ArgumentCaptor<List<ActionExecution>> traces = ArgumentCaptor.forClass(List.class);
+        verify(executionTraceService).saveAll(traces.capture());
+        ActionExecution trace = traces.getValue().get(0);
+        assertEquals(ActionExecution.FAILED, trace.getStatus());
+        assertEquals("qwen2.5:3b", trace.getModel());
+        assertEquals(40, trace.getInputTokens());
+        assertEquals(7, trace.getOutputTokens());
+        assertEquals("Asunto: x", trace.getPrompt());
+        assertEquals("LLM qwen2.5:3b", trace.getRequestSummary());
     }
 
     private State state(Long id, StateType type) {

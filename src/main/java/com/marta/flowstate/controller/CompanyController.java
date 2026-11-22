@@ -1,7 +1,10 @@
 package com.marta.flowstate.controller;
 
+import com.marta.flowstate.dto.LlmLimitDTO;
 import com.marta.flowstate.model.Company;
 import com.marta.flowstate.service.CompanyService;
+import com.marta.flowstate.service.LlmUsageService;
+import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,9 +17,11 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 public class CompanyController {
 
     private final CompanyService companyService;
+    private final LlmUsageService llmUsageService;
 
-    public CompanyController(CompanyService companyService) {
+    public CompanyController(CompanyService companyService, LlmUsageService llmUsageService) {
         this.companyService = companyService;
+        this.llmUsageService = llmUsageService;
     }
 
     @GetMapping
@@ -34,5 +39,12 @@ public class CompanyController {
     @DeleteMapping("/{id}")
     public void deleteCompany(@PathVariable Long id) {
         companyService.deleteCompany(id);
+    }
+
+    //Límite mensual de tokens LLM de la empresa del admin; monthlyTokenLimit null lo quita
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/me/llm-limit")
+    public LlmLimitDTO setLlmLimit(@Valid @RequestBody LlmLimitDTO dto) {
+        return llmUsageService.setMonthlyTokenLimit(dto.getMonthlyTokenLimit());
     }
 }

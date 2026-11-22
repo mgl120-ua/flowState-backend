@@ -26,6 +26,10 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en .env}
       JWT_SECRET: ${JWT_SECRET:?falta JWT_SECRET en .env}
       SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      # Ollama corre en la máquina anfitriona, no en el contenedor
+      FLOWSTATE_LLM_OLLAMA_URL: ${FLOWSTATE_LLM_OLLAMA_URL:-http://host.docker.internal:11434}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - db
 

@@ -33,7 +33,7 @@ public class HttpActionHandler {
     static final int MAX_TIMEOUT_MS = 30_000;
     static final int MAX_RESPONSE_BYTES = 256 * 1024;
     private static final Set<String> METHODS = Set.of("GET", "POST", "PUT", "PATCH", "DELETE");
-    private static final Pattern SAVE_AS = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
+    static final Pattern SAVE_AS = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
 
     //Sin redirecciones: una redirección podría llevar a una dirección interna que no se ha validado
     private final HttpClient httpClient = HttpClient.newBuilder()

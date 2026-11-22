@@ -15,6 +15,8 @@ import com.marta.flowstate.repository.ActionRepository;
 import com.marta.flowstate.repository.TransitionActionRepository;
 import com.marta.flowstate.repository.TransitionRepository;
 import com.marta.flowstate.security.SessionUserService;
+import com.marta.flowstate.service.llm.FakeLlmClient;
+import com.marta.flowstate.service.llm.LlmProperties;
 import com.marta.flowstate.util.TemplateRenderer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,7 +54,9 @@ class ActionServiceTest {
         ObjectMapper objectMapper = new ObjectMapper();
         TemplateRenderer renderer = new TemplateRenderer(objectMapper);
         HttpActionHandler http = new HttpActionHandler(new HttpTargetValidator(false), renderer, objectMapper);
-        ActionExecutorService executor = new ActionExecutorService(null, objectMapper, renderer, http);
+        LlmActionHandler llm = new LlmActionHandler(new FakeLlmClient(objectMapper),
+                new LlmProperties("fake", null, null, null), null, renderer, objectMapper);
+        ActionExecutorService executor = new ActionExecutorService(null, objectMapper, renderer, http, llm);
         actionService = new ActionService(actionRepository, transitionRepository, transitionActionRepository,
                 executor, sessionUserService, objectMapper);
         company = new Company(1L, "Acme");

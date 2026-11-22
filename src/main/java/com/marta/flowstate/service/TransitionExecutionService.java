@@ -20,6 +20,7 @@ import com.marta.flowstate.repository.Transition_PermissionRepository;
 import com.marta.flowstate.repository.Instance_HistoryRepository;
 import com.marta.flowstate.util.ConditionCheck;
 import com.marta.flowstate.repository.TransitionActionRepository;
+import com.marta.flowstate.service.llm.LlmUsage;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -252,6 +253,7 @@ public class TransitionExecutionService {
             if (e instanceof ActionFailedException failed) {
                 trace.setHttpStatus(failed.getHttpStatus());
                 trace.setRequestSummary(failed.getRequestSummary());
+                applyLlmUsage(trace, failed.getLlmUsage());
             }
             logger.warn("Falla la acción '{}' de la transición {}: {}", action.getName(), transition.getId(), e.getMessage());
             List<ActionExecution> all = new ArrayList<>(executions);
@@ -264,6 +266,7 @@ public class TransitionExecutionService {
             trace.setHttpStatus(result.httpStatus());
             trace.setRequestSummary(result.requestSummary());
             trace.setResponseSummary(traceResponse(result.output()));
+            applyLlmUsage(trace, result.llmUsage());
             if (result.saveAs() != null) {
                 Map<String, Object> data = instance.getData() != null ? new LinkedHashMap<>(instance.getData()) : new LinkedHashMap<>();
                 data.put(result.saveAs(), result.output());
@@ -271,6 +274,16 @@ public class TransitionExecutionService {
             }
         }
         return trace;
+    }
+
+    private static void applyLlmUsage(ActionExecution trace, LlmUsage usage) {
+        if (usage == null) return;
+        trace.setModel(usage.model());
+        trace.setInputTokens(usage.inputTokens());
+        trace.setOutputTokens(usage.outputTokens());
+        trace.setCostUsd(usage.costUsd());
+        trace.setPrompt(usage.prompt());
+        trace.setStopReason(usage.stopReason());
     }
 
     private Map<String, Object> traceResponse(Map<String, Object> output) {
