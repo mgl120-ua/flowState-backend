@@ -86,6 +86,8 @@ public class OllamaLlmClient implements LlmClient {
         body.put("model", request.model());
         body.put("messages", messages);
         body.put("stream", false);
+        //Sin razonamiento previo: los modelos que "piensan" (p. ej. qwen3.5) gastarían maxTokens antes de responder
+        body.put("think", false);
         if (request.outputSchema() != null) {
             body.put("format", request.outputSchema());
         }

@@ -86,6 +86,8 @@ class OllamaLlmClientTest {
         JsonNode sent = objectMapper.readTree(lastBody.get());
         assertEquals("qwen2.5:3b", sent.get("model").asText());
         assertFalse(sent.get("stream").asBoolean());
+        assertTrue(sent.has("think"));
+        assertFalse(sent.get("think").asBoolean());
         assertEquals("object", sent.get("format").get("type").asText());
         assertEquals(256, sent.get("options").get("num_predict").asInt());
         assertEquals(0, sent.get("options").get("temperature").asInt());
