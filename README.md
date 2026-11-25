@@ -1,5 +1,7 @@
 # flowState-backend
 
+[![CI](https://github.com/mgl120-ua/flowState-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/mgl120-ua/flowState-backend/actions/workflows/ci.yml)
+
 API REST para la gestión de flujos de trabajo y estados con autenticación JWT.
 
 ## El problema
@@ -140,16 +142,25 @@ Para cambiar el esquema, añade un nuevo archivo `V<n>__descripcion.sql` en `db/
 
 Si tienes una base de datos creada antes de usar Flyway, recréala vacía (con Docker: `docker compose down -v`) para que las migraciones se apliquen desde cero.
 
-## Ejecución
+## Cómo ejecutarlo
 
-Para compilar y ejecutar el proyecto:
+### 1. Modelo local con Ollama
+
+Las acciones LLM necesitan [Ollama](https://ollama.com) en la máquina anfitriona con un modelo pequeño:
 
 ```powershell
-./mvnw.cmd clean package
-./mvnw.cmd spring-boot:run
+ollama pull qwen3.5:4b   # una vez, unos 3,3 GB
+ollama serve             # si no está ya arrancado como servicio
 ```
 
-## Ejecución con Docker
+En un portátil sin GPU conviene que Ollama tenga un solo modelo cargado y atienda una petición cada vez (ver [Aprendizaje sobre el hardware](#aprendizaje-sobre-el-hardware)):
+
+```powershell
+$env:OLLAMA_MAX_LOADED_MODELS="1"
+$env:OLLAMA_NUM_PARALLEL="1"
+```
+
+### 2a. Con Docker (backend + PostgreSQL)
 
 Las credenciales se leen de un archivo `.env` que no se sube al repositorio:
 
@@ -158,9 +169,34 @@ Copy-Item .env.example .env   # y rellena los valores
 docker compose up --build
 ```
 
-Si falta alguna variable obligatoria, `docker compose` se detiene indicando cuál.
+| Variable de `.env` | Obligatoria | Uso |
+|---|---|---|
+| `POSTGRES_USER`, `POSTGRES_PASSWORD` | Sí | Usuario y contraseña de PostgreSQL |
+| `POSTGRES_DB` | No (`flowState`) | Nombre de la base de datos |
+| `JWT_SECRET` | Sí | Clave para firmar los JWT, de al menos 32 caracteres |
+| `SPRING_MAIL_PASSWORD` | No | Contraseña SMTP. Hace falta para ejecutar transiciones manuales, que envían un email de aviso |
+| `FLOWSTATE_LLM_OLLAMA_URL` | No | URL de Ollama vista desde el contenedor. Por defecto `http://host.docker.internal:11434` |
 
-Dentro de Docker, el backend llega a Ollama en tu máquina con `http://host.docker.internal:11434` (valor por defecto en `docker-compose.yaml`).
+Si falta alguna variable obligatoria, `docker compose` se detiene indicando cuál. La API queda en `http://localhost:8085` y Swagger en `http://localhost:8085/swagger-ui.html`.
+
+### 2b. Sin Docker
+
+Con PostgreSQL en `localhost:5432` y la base de datos `flowState` creada (ver [Base de datos](#base-de-datos)):
+
+```powershell
+$env:SPRING_DATASOURCE_USERNAME="tu-usuario"   # por defecto, marta
+$env:SPRING_DATASOURCE_PASSWORD="..."
+$env:JWT_SECRET="..."                           # al menos 32 caracteres
+$env:SPRING_MAIL_PASSWORD="..."
+$env:SPRING_PROFILES_ACTIVE="local"             # opcional: carga datos de ejemplo
+./mvnw.cmd spring-boot:run
+```
+
+El resto de variables están en [Configuración](#configuración).
+
+### Sin modelo
+
+Para probar los flujos sin Ollama, arranca sin Docker con `FLOWSTATE_LLM_PROVIDER=fake`: las acciones LLM devuelven la respuesta fija que indique cada acción (`fakeResponse` y `fakeRules`).
 
 ## Registro de usuarios
 
@@ -227,7 +263,7 @@ Cada llamada queda en la traza con el modelo, los tokens de entrada y salida, el
 
 Para tests o demos sin Ollama, `FLOWSTATE_LLM_PROVIDER=fake` responde con lo que indique la propia acción: `"fakeResponse"` (respuesta por defecto) y `"fakeRules": [{"contains": "texto del prompt", "response": ...}]`.
 
-Rendimiento medido en un portátil sin GPU dedicada (i7-1255U, 32 GB de RAM, solo CPU) con `qwen2.5:3b`: la primera llamada tarda unos 24 s porque Ollama carga el modelo, y las siguientes unos 7-8 s con unos 100 tokens de entrada y 30 de salida. El modelo ocupa unos 2,2 GB de RAM. Con `qwen3.5:4b`, el modelo por defecto, cada llamada tarda unos 8 s, ocupa unos 3,7 GB de RAM y clasifica bien el caso urgente que el 3B fallaba. En equipos así conviene no pasar de modelos de 4B y limitar Ollama a un modelo cargado con `OLLAMA_MAX_LOADED_MODELS=1` y `OLLAMA_NUM_PARALLEL=1`. Un modelo tan pequeño puede equivocarse incluso con confianza alta, así que conviene revisar sus decisiones críticas.
+Las cifras de latencia y memoria de cada modelo están en [Aprendizaje sobre el hardware](#aprendizaje-sobre-el-hardware). Un modelo tan pequeño puede equivocarse incluso con confianza alta, así que sus decisiones críticas deben pasar por una persona.
 
 Consumo y límite (solo `ADMIN`, datos de su empresa):
 
@@ -256,6 +292,32 @@ powershell -ExecutionPolicy Bypass -File demo\reclamaciones\demo-reclamaciones.p
 
 Cada reclamación de `reclamaciones.json` incluye la clasificación esperada, y el script cuenta cuántos campos acierta el modelo. Al ejecutar una transición manual el backend envía un email de aviso, así que hace falta `SPRING_MAIL_PASSWORD`.
 
+## Métricas
+
+| Métrica | Valor | Cómo se ha obtenido |
+|---|---|---|
+| Tests automáticos | 128, todos en verde | `./mvnw verify` con PostgreSQL 16 (JUnit 5 y Spring Boot Test, 27 clases de test) |
+| Integración continua | GitHub Actions en cada push y pull request a `main` y `dev` | [`.github/workflows/ci.yml`](.github/workflows/ci.yml): Java 21, PostgreSQL 16 como servicio y `mvnw verify`, en torno a 1 minuto |
+| Coste por llamada al LLM | 0 USD con modelos locales | Los modelos que no están en `flowstate.llm.prices` cuestan 0. Para un modelo de pago se indica el precio en USD por millón de tokens y la traza guarda el coste de cada llamada |
+| Latencia por llamada | Unos 8 s con `qwen3.5:4b` | Portátil i7-1255U, 32 GB de RAM, solo CPU. La primera llamada tras arrancar Ollama tarda más porque carga el modelo (unos 24 s medidos con `qwen2.5:3b`) |
+| Tokens por llamada en la demo | Pendiente de medir | El script de la demo muestra los tokens de cada llamada |
+| Acierto del modelo en la demo | Pendiente de medir | El script compara cada clasificación con la esperada en `reclamaciones.json` |
+| Límite mensual por empresa | Configurable, sin límite por defecto | `PUT /companies/me/llm-limit`. Se comprueba antes de cada llamada, así que la última llamada del mes puede superarlo ligeramente |
+
+## Aprendizaje sobre el hardware
+
+Todo el desarrollo se ha hecho en un portátil sin GPU dedicada (Intel i7-1255U, 32 GB de RAM), así que el modelo tenía que funcionar solo con CPU y compartir memoria con Windows, Docker, PostgreSQL, la JVM y el IDE.
+
+- **`qwen3-coder:30b`: no viable.** Al cargarlo, el portátil dejó de responder. Aunque por cada token solo trabaja una parte del modelo, Ollama tiene que cargar en memoria los 30.000 millones de parámetros: con cuantización de 4 bits son del orden de 15-20 GB solo de pesos, a los que se suma el contexto. Con el resto del entorno abierto, el sistema se queda sin memoria y empieza a usar disco.
+- **`qwen2.5:3b`: rápido pero poco fiable.** Ocupa unos 2,2 GB de RAM y responde en unos 7-8 s (unos 100 tokens de entrada y 30 de salida), pero clasificó mal el caso urgente de las pruebas.
+- **`qwen3.5:4b`: el elegido.** Ocupa unos 3,7 GB de RAM, responde en unos 8 s y clasificó bien los tres casos de prueba, incluido el urgente. Se llama con `"think": false` para que no genere un razonamiento previo, que gasta tokens y alarga la respuesta.
+
+Conclusiones:
+
+- En un equipo así conviene no pasar de modelos de unos 4B parámetros y limitar Ollama a un modelo cargado (`OLLAMA_MAX_LOADED_MODELS=1`, `OLLAMA_NUM_PARALLEL=1`).
+- Un modelo pequeño basta para proponer una clasificación con un esquema cerrado, siempre que el motor valide la respuesta y una persona revise las decisiones importantes.
+- El modelo se elige por acción (`model`) o por variable de entorno, así que pasar a un modelo mayor o a un proveedor gestionado no cambia los flujos.
+
 ## Swagger / Documentación
 
 Después de arrancar la aplicación, la documentación Swagger está disponible en:
@@ -271,6 +333,8 @@ Ejecuta las pruebas con:
 ```powershell
 ./mvnw.cmd test
 ```
+
+El test que aplica las migraciones de Flyway sobre una base de datos real solo se ejecuta si existe `FLOWSTATE_TEST_DB_URL` (con `FLOWSTATE_TEST_DB_USER` y `FLOWSTATE_TEST_DB_PASSWORD`), como en la integración continua.
 
 ## Buenas prácticas de uso
 
