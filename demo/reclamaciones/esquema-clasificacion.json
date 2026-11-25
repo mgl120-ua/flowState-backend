@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "properties": {
+    "tipo": {
+      "type": "string",
+      "enum": ["mantenimiento", "descubierto", "tarjeta", "cajero", "transferencia", "cargo_no_reconocido", "otra"]
+    },
+    "urgencia": {
+      "type": "string",
+      "enum": ["alta", "media", "baja"]
+    },
+    "procede_devolucion": {
+      "type": "boolean"
+    },
+    "importe_reclamado": {
+      "type": ["number", "null"],
+      "minimum": 0
+    },
+    "confianza": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "motivo": {
+      "type": "string"
+    }
+  },
+  "required": ["tipo", "urgencia", "procede_devolucion", "importe_reclamado", "confianza", "motivo"],
+  "additionalProperties": false
+}

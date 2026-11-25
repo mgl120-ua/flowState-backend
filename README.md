@@ -11,7 +11,7 @@ Bancos y aseguradoras quieren usar IA en tareas repetitivas, como clasificar rec
 FlowState modela cada proceso como una máquina de estados, con estados, transiciones, condiciones y permisos por rol. La IA es una acción más dentro del flujo y no es quien lo gobierna.
 
 - **La IA propone.** Una acción `LLM` envía al modelo un prompt con datos del expediente (`{{cliente}}`, `{{descripcion}}`…) y le exige una respuesta JSON que cumpla un esquema (`outputSchema`).
-- **El motor valida y decide.** El backend vuelve a validar la respuesta contra el esquema. Si no es JSON válido, no cumple el esquema o se corta por `maxTokens`, la acción falla y la transición se deshace entera (estado, historial y datos). El cambio de estado lo decide una condición explícita, por ejemplo `triaje.body.categoria == 'urgente' and triaje.body.confianza >= 0.8`, y lo que no la cumple puede quedar en un estado de revisión humana. Las transiciones manuales solo las ejecuta un rol con permiso sobre esa transición.
+- **El motor valida y decide.** El backend vuelve a validar la respuesta contra el esquema. Si no es JSON válido, no cumple el esquema o se corta por `maxTokens`, la acción falla y la transición se deshace entera (estado, historial y datos). El cambio de estado lo decide una condición explícita, por ejemplo `clasificacion.body.tipo == 'cargo_no_reconocido' or clasificacion.body.confianza < 0.7`, que manda el caso a una cola de revisión prioritaria aunque el modelo no lo pida. Las transiciones manuales solo las ejecuta un rol con permiso sobre esa transición.
 - **Todo queda registrado.** Cada acción deja una traza en PostgreSQL con su estado, duración y error. En las acciones LLM se guarda también el modelo, los tokens de entrada y salida, el coste, el prompt enviado (recortado a 8 KB) y el motivo de fin. Las ejecuciones fallidas se guardan igualmente, en una transacción aparte, aunque la transición se deshaga. El historial de la instancia registra cada cambio de estado y quién lo hizo, o si lo hizo el sistema.
 - **El gasto tiene límite.** Cada empresa puede fijar un límite mensual de tokens. Al alcanzarlo, las acciones LLM fallan sin llamar al modelo hasta el mes siguiente. `GET /usage/llm` muestra llamadas, tokens y coste por modelo y por flujo.
 
@@ -193,31 +193,35 @@ ollama pull qwen3.5:4b   # una vez, unos 3,3 GB
 ollama serve             # si no está ya arrancado como servicio
 ```
 
-Ejemplo de clasificación de incidencias, que guarda el resultado en `data.triaje`:
+Ejemplo de clasificación de reclamaciones por comisiones bancarias, que guarda el resultado en `data.clasificacion` (el esquema completo está en [`demo/reclamaciones/esquema-clasificacion.json`](demo/reclamaciones/esquema-clasificacion.json)):
 
 ```json
 {
-  "name": "Clasificar incidencia",
+  "name": "Clasificar reclamación",
   "type": "LLM",
   "config": {
-    "system": "Clasifica incidencias de soporte.",
-    "prompt": "Asunto: {{asunto}}\nDescripción: {{descripcion}}",
+    "system": "Eres analista de reclamaciones de clientes de un banco español...",
+    "prompt": "Cliente: {{cliente}}\nProducto: {{producto}}\nReclamación: {{descripcion}}",
     "outputSchema": {
       "type": "object",
       "properties": {
-        "categoria": {"type": "string", "enum": ["urgente", "normal"]},
+        "tipo": {"type": "string", "enum": ["mantenimiento", "descubierto", "tarjeta", "cajero", "transferencia", "cargo_no_reconocido", "otra"]},
+        "urgencia": {"type": "string", "enum": ["alta", "media", "baja"]},
+        "procede_devolucion": {"type": "boolean"},
+        "importe_reclamado": {"type": ["number", "null"], "minimum": 0},
         "confianza": {"type": "number", "minimum": 0, "maximum": 1},
         "motivo": {"type": "string"}
       },
-      "required": ["categoria", "confianza", "motivo"]
+      "required": ["tipo", "urgencia", "procede_devolucion", "importe_reclamado", "confianza", "motivo"],
+      "additionalProperties": false
     },
-    "maxTokens": 512,
-    "saveAs": "triaje"
+    "maxTokens": 400,
+    "saveAs": "clasificacion"
   }
 }
 ```
 
-Una transición automática con la condición `triaje.body.categoria == 'urgente' and triaje.body.confianza >= 0.8` lleva la instancia al estado correspondiente, y otra sin condición puede dejar el resto en un estado de revisión humana.
+Después, una transición automática con la condición `clasificacion.body.tipo == 'cargo_no_reconocido' or clasificacion.body.urgencia == 'alta' or clasificacion.body.confianza < 0.7` lleva la reclamación a revisión prioritaria, y otra con la condición `true` deja el resto en revisión ordinaria. La IA solo propone si procede la devolución: la deciden transiciones manuales que solo puede ejecutar el rol `GESTOR`.
 
 Cada llamada queda en la traza con el modelo, los tokens de entrada y salida, el coste, el prompt enviado (recortado a 8 KB, puede contener datos de la instancia) y el motivo de fin. El coste sale de la tabla `flowstate.llm.prices` de `application.properties`; los modelos locales no están en ella y cuestan 0.
 
@@ -233,6 +237,24 @@ Consumo y límite (solo `ADMIN`, datos de su empresa):
 Una transición con `"automatic": true` la ejecuta el motor sin intervención al llegar a su estado origen, si se cumple su condición. Si hay varias, se ejecuta la primera que se cumpla (por orden de creación), y así sucesivamente hasta llegar a un estado `FINAL`, no tener ninguna aplicable o encadenar 20 seguidas. Las condiciones admiten rutas con punto, por ejemplo `validacion.body.ok == true`.
 
 Si una acción falla, la transición se deshace por completo (estado, historial y datos), la API responde `502` indicando la acción y el motivo, y el fallo queda en la traza. Al crear una instancia también se ejecutan sus transiciones automáticas; si una falla, la instancia se queda en el estado inicial.
+
+## Demo: reclamaciones por comisiones bancarias
+
+[`demo/reclamaciones`](demo/reclamaciones) monta el caso completo contra la API:
+
+1. Crea una entidad con un administrador y un usuario con rol `GESTOR`.
+2. Define el flujo `Recibida → Clasificada → Revisión prioritaria | Revisión ordinaria → Devolución aprobada | Reclamación desestimada`.
+3. Clasifica con el modelo local las cuatro reclamaciones de [`reclamaciones.json`](demo/reclamaciones/reclamaciones.json): una comisión de mantenimiento cobrada por error, una comisión de cajero que el cliente aceptó, unos cargos no reconocidos (posible fraude) y un descubierto ambiguo.
+4. El administrador intenta resolver una reclamación y recibe `403`, porque solo el `GESTOR` tiene permiso. El gestor registra su decisión y una nota y aprueba o desestima cada una, coincida o no con lo que propuso la IA.
+5. Muestra la traza de cada llamada al modelo (tokens, coste y duración), el historial de cambios de estado con quién los hizo y el consumo total.
+
+```powershell
+ollama pull qwen3.5:4b
+./mvnw.cmd spring-boot:run          # en otra terminal, con las variables de entorno configuradas
+powershell -ExecutionPolicy Bypass -File demo\reclamaciones\demo-reclamaciones.ps1
+```
+
+Cada reclamación de `reclamaciones.json` incluye la clasificación esperada, y el script cuenta cuántos campos acierta el modelo. Al ejecutar una transición manual el backend envía un email de aviso, así que hace falta `SPRING_MAIL_PASSWORD`.
 
 ## Swagger / Documentación
 

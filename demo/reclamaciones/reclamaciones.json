@@ -1,0 +1,56 @@
+{
+  "reclamaciones": [
+    {
+      "id": "REC-001",
+      "datos": {
+        "cliente": "Lucía Ferrer",
+        "producto": "Cuenta Nómina (sin comisiones con nómina domiciliada)",
+        "canal": "app",
+        "descripcion": "Este trimestre me han cobrado 60 € de comisión de mantenimiento. Tengo la nómina domiciliada desde hace tres años y las condiciones de mi cuenta dicen que no tiene comisiones. Pido que me devuelvan el importe."
+      },
+      "esperado": { "tipo": "mantenimiento", "urgencia": "media", "procede_devolucion": true },
+      "decision_gestor": "aprobar",
+      "nota_gestor": "Nómina domiciliada sin interrupciones. Se devuelven 60 € por error en la aplicación de la tarifa.",
+      "por_que": "Caso claro a favor del cliente: el contrato excluye la comisión."
+    },
+    {
+      "id": "REC-002",
+      "datos": {
+        "cliente": "Andrés Molina",
+        "producto": "Tarjeta de débito",
+        "canal": "oficina",
+        "descripcion": "Saqué 200 € en un cajero de otro banco en Oporto y me cobraron 4,50 € de comisión. La pantalla del cajero lo avisaba y lo acepté, pero me parece abusivo y quiero reclamarlo."
+      },
+      "esperado": { "tipo": "cajero", "urgencia": "baja", "procede_devolucion": false },
+      "decision_gestor": "desestimar",
+      "nota_gestor": "Comisión del cajero ajeno informada en pantalla y aceptada por el cliente. Se responde explicando la tarifa.",
+      "por_que": "Caso claro en contra: la comisión se informó y se aceptó antes de la operación."
+    },
+    {
+      "id": "REC-003",
+      "datos": {
+        "cliente": "Marina Soler",
+        "producto": "Tarjeta de crédito",
+        "canal": "teléfono",
+        "descripcion": "En el extracto aparecen tres cargos de 29,90 € con el concepto SERVICIO PREMIUM que nunca he contratado, y también un pago en una web que no conozco. Creo que alguien está usando mi tarjeta. Quiero que la bloqueen y que me devuelvan el dinero."
+      },
+      "esperado": { "tipo": "cargo_no_reconocido", "urgencia": "alta", "procede_devolucion": true },
+      "decision_gestor": "aprobar",
+      "nota_gestor": "Tarjeta bloqueada y caso enviado a fraude. Se abonan provisionalmente 89,70 € de los cargos no contratados.",
+      "por_que": "Posible fraude: la regla del flujo lo manda a revisión prioritaria aunque el modelo se equivoque de urgencia."
+    },
+    {
+      "id": "REC-004",
+      "datos": {
+        "cliente": "Javier Ortega",
+        "producto": "Cuenta corriente",
+        "canal": "web",
+        "descripcion": "El mes pasado me cobraron 35 € por descubierto. Es verdad que la cuenta estuvo dos días en negativo porque la nómina llegó tarde, pero nadie me avisó ni me reclamó nada. No sé si pueden cobrarme eso."
+      },
+      "esperado": { "tipo": "descubierto" },
+      "decision_gestor": "aprobar",
+      "nota_gestor": "No consta ninguna gestión de reclamación de la deuda antes del cargo. Se devuelven 35 €.",
+      "por_que": "Caso ambiguo: el descubierto existió, pero no consta gestión de reclamación. La decisión depende de información que el modelo no tiene."
+    }
+  ]
+}
