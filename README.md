@@ -2,6 +2,69 @@
 
 API REST para la gestión de flujos de trabajo y estados con autenticación JWT.
 
+## El problema
+
+Bancos y aseguradoras quieren usar IA en tareas repetitivas, como clasificar reclamaciones o revisar documentación KYC. Pero en un sector regulado no basta con que el modelo acierte casi siempre. Hay que poder explicar cada decisión, saber qué datos se enviaron al modelo, impedir que una respuesta mal formada cambie el estado de un expediente y saber cuánto se está gastando. Si el LLM se conecta directamente al proceso, ninguna de esas preguntas tiene respuesta: el modelo decide y nadie puede reconstruir por qué ni con qué límites.
+
+## Qué hace FlowState
+
+FlowState modela cada proceso como una máquina de estados, con estados, transiciones, condiciones y permisos por rol. La IA es una acción más dentro del flujo y no es quien lo gobierna.
+
+- **La IA propone.** Una acción `LLM` envía al modelo un prompt con datos del expediente (`{{cliente}}`, `{{descripcion}}`…) y le exige una respuesta JSON que cumpla un esquema (`outputSchema`).
+- **El motor valida y decide.** El backend vuelve a validar la respuesta contra el esquema. Si no es JSON válido, no cumple el esquema o se corta por `maxTokens`, la acción falla y la transición se deshace entera (estado, historial y datos). El cambio de estado lo decide una condición explícita, por ejemplo `triaje.body.categoria == 'urgente' and triaje.body.confianza >= 0.8`, y lo que no la cumple puede quedar en un estado de revisión humana. Las transiciones manuales solo las ejecuta un rol con permiso sobre esa transición.
+- **Todo queda registrado.** Cada acción deja una traza en PostgreSQL con su estado, duración y error. En las acciones LLM se guarda también el modelo, los tokens de entrada y salida, el coste, el prompt enviado (recortado a 8 KB) y el motivo de fin. Las ejecuciones fallidas se guardan igualmente, en una transacción aparte, aunque la transición se deshaga. El historial de la instancia registra cada cambio de estado y quién lo hizo, o si lo hizo el sistema.
+- **El gasto tiene límite.** Cada empresa puede fijar un límite mensual de tokens. Al alcanzarlo, las acciones LLM fallan sin llamar al modelo hasta el mes siguiente. `GET /usage/llm` muestra llamadas, tokens y coste por modelo y por flujo.
+
+Los modelos se ejecutan en local con Ollama (`qwen3.5:4b` por defecto), sin claves ni coste por llamada.
+
+### Estado actual
+
+| Implementado | Previsto |
+|---|---|
+| Flujos, estados, transiciones manuales y automáticas con condiciones | Llamadas al LLM asíncronas (hoy van dentro de la petición) |
+| Acciones HTTP, EMAIL y LLM, con plantillas sobre los datos de la instancia | Proveedor Azure OpenAI además de Ollama |
+| Validación de la salida del LLM con JSON Schema | Paso de consulta normativa con RAG sobre regulación bancaria pública |
+| Traza de ejecución con modelo, tokens, coste y prompt | Evaluaciones con casos etiquetados (acierto, citas, coste, latencia) |
+| Límite mensual de tokens y consumo por empresa | Demo desplegada con Docker en Azure |
+| Empresas, roles, permisos por transición, registro por invitación, JWT | |
+
+## Arquitectura
+
+```mermaid
+flowchart LR
+    C["Cliente / Swagger UI"] -->|"REST + JWT"| API
+
+    subgraph Backend["Backend Spring Boot"]
+        API["API REST<br/>controladores + seguridad JWT"]
+        ENG["Motor de estados<br/>transiciones manuales y automáticas"]
+        RULES["Condiciones y permisos por rol"]
+        EXE["Ejecutor de acciones"]
+        HTTP["Acción HTTP<br/>bloquea hosts internos"]
+        LLM["Acción LLM<br/>valida esquema JSON"]
+        MAIL["Acción EMAIL"]
+        USAGE["Consumo y límite<br/>mensual de tokens"]
+        TRACE["Traza de ejecución<br/>e historial"]
+    end
+
+    API --> ENG
+    ENG --> RULES
+    ENG --> EXE
+    EXE --> HTTP
+    EXE --> LLM
+    EXE --> MAIL
+    LLM -->|"comprueba límite"| USAGE
+    EXE -->|"estado, duración, tokens, coste"| TRACE
+    ENG -->|"cambio de estado"| TRACE
+
+    HTTP --> EXT["APIs externas"]
+    LLM -->|"/api/chat"| OLL["Ollama local<br/>qwen3.5:4b"]
+    MAIL --> SMTP["Servidor SMTP"]
+
+    ENG --> DB[("PostgreSQL<br/>migraciones Flyway")]
+    TRACE --> DB
+    USAGE --> DB
+```
+
 ## Descripción
 
 Este proyecto es un backend Spring Boot que implementa:
